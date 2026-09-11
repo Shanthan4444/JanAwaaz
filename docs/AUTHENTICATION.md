@@ -4,7 +4,7 @@
 
 Jansetu Phase 4 introduces a shared identity architecture.
 
-All user personas (**CITIZEN**, **AUTHORITY**, **WORKER**) reside in a single MongoDB `users` collection ([`backend/src/models/User.js`](file:///Users/rohan/Desktop/JanSetu/backend/src/models/User.js)).
+All user personas (**CITIZEN**, **AUTHORITY**, **WORKER**) reside in a single MongoDB `users` collection ([`backend/src/models/User.js`](../backend/src/models/User.js)).
 
 ---
 

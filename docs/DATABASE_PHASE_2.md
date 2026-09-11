@@ -4,7 +4,7 @@
 
 The Phase 2 database layer uses **Mongoose** to interact with MongoDB.
 
-- **Config Module**: [`backend/src/config/database.js`](file:///Users/rohan/Desktop/JanSetu/backend/src/config/database.js)
+- **Config Module**: [`backend/src/config/database.js`](../backend/src/config/database.js)
 - **Database Name**: `jansetu`
 - **Primary Model**: `Issue` collection (`issues`)
 

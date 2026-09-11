@@ -88,8 +88,8 @@ In traditional civic portals, authorities can unilaterally mark a complaint as "
 
 ### 1. Clone & Configure Environment
 ```bash
-git clone https://github.com/rohanforgit/JanSetu.git
-cd JanSetu/backend
+git clone https://github.com/Shanthan4444/JanAwaaz.git
+cd JanAwaaz/backend
 cp .env.example .env
 ```
 

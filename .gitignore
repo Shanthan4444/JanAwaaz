@@ -4,8 +4,10 @@ dist/
 build/
 .DS_Store
 *.log
+scratch/
 
 # Environment variables
 .env
 .env.*
 !.env.example
+
