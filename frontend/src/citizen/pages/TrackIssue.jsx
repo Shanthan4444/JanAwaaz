@@ -12,7 +12,9 @@ import { Textarea } from '../../shared/components/Textarea';
 import { LoadingState } from '../../shared/components/LoadingState';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { issuesApi } from '../../services/api/issuesApi';
+import { mockApi } from '../../services/api/mockApi';
 import { MapPin, Calendar, CheckCircle2, RotateCcw, Award, AlertTriangle, Cpu, AlertCircle } from 'lucide-react';
+import { resolveImageUrl } from '../../shared/utils/imageUtils';
 
 const getStageIndex = (status) => {
   switch (status) {
