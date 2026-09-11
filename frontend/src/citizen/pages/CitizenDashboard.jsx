@@ -22,7 +22,12 @@ export const CitizenDashboard = ({ onNavigate }) => {
         citizenApi.getIssues()
       ]);
       if (profData) setProfile(profData);
-      setIssues(issueList || []);
+      const sortedIssues = (issueList || []).sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+      setIssues(sortedIssues);
     } catch (err) {
       console.error('[CITIZEN DASHBOARD ERROR]', err);
     } finally {
@@ -230,7 +235,7 @@ export const CitizenDashboard = ({ onNavigate }) => {
                   {issue.title}
                 </h3>
                 <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: 'var(--space-3)' }}>
-                  {issue.description}
+                  {issue.voiceTranscript || issue.description}
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-subtle)', paddingTop: 'var(--space-3)', flexWrap: 'wrap', gap: '8px' }}>

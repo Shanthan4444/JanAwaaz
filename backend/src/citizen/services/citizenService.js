@@ -9,13 +9,23 @@ export const citizenService = {
   getCitizenProfile: async (user) => {
     const userDoc = await User.findById(user.id).select('-passwordHash');
     const userId = user.id;
+    const cleanMobile = (userDoc?.mobile || user.mobile || '').trim().replace(/\D/g, '').slice(-10);
 
-    const reportedCount = await Issue.countDocuments({ 'reporter.userId': userId });
-    const closedCount = await Issue.countDocuments({ 'reporter.userId': userId, status: 'CLOSED' });
+    const orConditions = [];
+    if (userId) orConditions.push({ 'reporter.userId': userId });
+    if (cleanMobile) {
+      orConditions.push({ 'reporter.mobile': cleanMobile });
+      orConditions.push({ 'reporter.mobile': `+91${cleanMobile}` });
+      orConditions.push({ 'reporter.userId': `user-${cleanMobile}` });
+    }
+    const userMatch = orConditions.length > 0 ? { $or: orConditions } : { 'reporter.userId': userId };
+
+    const reportedCount = await Issue.countDocuments(userMatch);
+    const closedCount = await Issue.countDocuments({ ...userMatch, status: 'CLOSED' });
     const supportedCount = await IssueSupport.countDocuments({ userId });
     const volunteerCount = await IssueVolunteer.countDocuments({ userId });
     const verificationNeededCount = await Issue.countDocuments({
-      'reporter.userId': userId,
+      ...userMatch,
       status: { $in: ['RESOLVED', 'CITIZEN_VERIFICATION'] }
     });
 
@@ -36,9 +46,18 @@ export const citizenService = {
   },
 
   getCitizenIssues: async (user, filters = {}) => {
-    const query = {
-      'reporter.userId': user.id
-    };
+    const cleanMobile = (user.mobile || '').trim().replace(/\D/g, '').slice(-10);
+    const orConditions = [];
+
+    if (user.id) orConditions.push({ 'reporter.userId': user.id });
+    if (user._id) orConditions.push({ 'reporter.userId': user._id.toString() });
+    if (cleanMobile) {
+      orConditions.push({ 'reporter.mobile': cleanMobile });
+      orConditions.push({ 'reporter.mobile': `+91${cleanMobile}` });
+      orConditions.push({ 'reporter.userId': `user-${cleanMobile}` });
+    }
+
+    const query = orConditions.length > 0 ? { $or: orConditions } : { 'reporter.userId': user.id };
 
     if (filters.status) {
       if (filters.status === 'ACTIVE') {

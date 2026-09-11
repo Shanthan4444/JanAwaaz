@@ -104,6 +104,34 @@ export function mergeTranscripts(existing, addition) {
   return `${existing} ${addition}`.trim();
 }
 
+/**
+ * Extracts a concise, accurate summarized title from the citizen's actual voice statement
+ */
+export function generateSummarizedTitle(text, category = '') {
+  if (!text) return category ? `${category} Issue` : 'Civic Issue';
+  let cleaned = cleanRepeatedPhrases(text.trim());
+  if (!cleaned) return category ? `${category} Issue` : 'Civic Issue';
+
+  // Split on clause delimiters: periods, question marks, commas, or common narrative conjunctions
+  const delimiterRegex = /([.,!?;:\n]|(\s+(గత|గదా|దీని వల్ల|దీనివలన|కారణంగా|అందువల్ల|ఎవరైనా|because|due to|from past|for the last|since|की वजह से|पिछले|क्योंकि)\s+))/i;
+  const parts = cleaned.split(delimiterRegex);
+  let firstClause = (parts[0] || '').trim();
+
+  // If first clause is a good title length (between 8 and 70 chars), use it directly!
+  if (firstClause.length >= 8 && firstClause.length <= 70) {
+    return firstClause;
+  }
+
+  // If short or entire string fits in 60 chars
+  if (cleaned.length <= 60) return cleaned;
+
+  // Otherwise, cut cleanly at word boundary
+  const truncated = cleaned.slice(0, 60);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated).trim();
+}
+
+
 export class SpeechService {
   constructor() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

@@ -30,8 +30,7 @@ import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Textarea } from '../../shared/components/Textarea';
 import { FileUpload } from '../../shared/components/FileUpload';
-import { Modal } from '../../shared/components/Modal';
-import { speechService, cleanRepeatedPhrases } from '../../services/speech/speechService';
+import { speechService, cleanRepeatedPhrases, generateSummarizedTitle } from '../../services/speech/speechService';
 import { locationService } from '../../services/location/locationService';
 import { issuesApi } from '../../services/api/issuesApi';
 import { authApi } from '../../services/api/authApi';
@@ -582,16 +581,17 @@ export const ReportIssue = ({ onNavigate }) => {
     const category = aiAnalysis?.category || voiceValidation.category || 'Road Damage';
     const department = aiAnalysis?.department || 'Roads & Infrastructure';
 
-    // Title strictly matches the citizen's actual complaint
-    let titleToUse = cleanRepeatedPhrases(aiAnalysis?.summary || aiAnalysis?.issueTitle || '');
-    if (!titleToUse || titleToUse.length < 3 || titleToUse.toLowerCase().includes('unknown')) {
-      titleToUse = cleanRepeatedPhrases(description.slice(0, 60));
-    }
+    // Strictly generate a clean, accurate summarized title directly from the citizen's voice input
+    const titleToUse = generateSummarizedTitle(description, category);
+
+    // Ensure mobile is accurately captured
+    const cleanUserMobile = (reporterUser?.mobile || user?.mobile || mobileNumber || '').trim();
 
     try {
       const created = await issuesApi.createIssue({
         title: titleToUse,
-        description,
+        description: description,
+        voiceTranscript: description,
         category,
         department,
         severity: aiAnalysis?.severity || 'HIGH',
@@ -605,9 +605,9 @@ export const ReportIssue = ({ onNavigate }) => {
         },
         evidence: images.length > 0 ? images : ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80'],
         reporter: {
-          userId: reporterUser?.id || reporterUser?._id || user?.id || user?._id || (mobileNumber ? `user-${mobileNumber}` : 'demo-citizen-001'),
+          userId: reporterUser?.id || reporterUser?._id || user?.id || user?._id || (cleanUserMobile ? `user-${cleanUserMobile}` : 'demo-citizen-001'),
           name: reporterUser?.name || user?.name || fullName || 'Citizen',
-          mobile: reporterUser?.mobile || user?.mobile || mobileNumber || ''
+          mobile: cleanUserMobile
         }
       });
 

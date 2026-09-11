@@ -157,6 +157,24 @@ export const issueService = {
       console.warn('[WORKER AUTO ASSIGNMENT WARN]', workerErr);
     }
 
+    let reporterMobile = payload.reporter?.mobile || user?.mobile || '';
+    let reporterName = payload.reporter?.name || user?.name || 'Citizen';
+    let reporterUserId = payload.reporter?.userId || user?.id || user?._id || 'demo-citizen-001';
+
+    if (!reporterMobile && (user?.id || payload.reporter?.userId)) {
+      try {
+        const { User } = await import('../../models/User.js');
+        const targetId = user?.id || payload.reporter?.userId;
+        const dbUser = await User.findById(targetId);
+        if (dbUser && dbUser.mobile) {
+          reporterMobile = dbUser.mobile;
+          if (reporterName === 'Citizen' && dbUser.name) {
+            reporterName = dbUser.name;
+          }
+        }
+      } catch (err) {}
+    }
+
     const newIssueData = {
       issueId,
       title: payload.title.trim(),
@@ -177,9 +195,9 @@ export const issueService = {
       },
       evidence: evidenceList,
       reporter: {
-        userId: payload.reporter?.userId || user?.id || user?._id || 'demo-citizen-001',
-        name: payload.reporter?.name || user?.name || 'Citizen',
-        mobile: payload.reporter?.mobile || user?.mobile || ''
+        userId: reporterUserId,
+        name: reporterName,
+        mobile: reporterMobile
       },
       assignedWorker: assignedWorkerData,
       supporters: 1,
