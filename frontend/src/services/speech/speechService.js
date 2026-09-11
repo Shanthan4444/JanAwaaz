@@ -18,6 +18,92 @@ export const getSpeechLangCode = (shortLang = 'en') => {
   }
 };
 
+/**
+ * Remove immediate consecutive duplicate words (e.g. "road road" -> "road")
+ */
+export function cleanRepeatedWords(text) {
+  if (!text) return '';
+  const cleaned = text.trim().replace(/\s+/g, ' ');
+  const words = cleaned.split(' ');
+  const resultWords = [];
+  for (let i = 0; i < words.length; i++) {
+    const current = words[i];
+    const prev = resultWords[resultWords.length - 1];
+    if (prev && prev.toLowerCase() === current.toLowerCase()) {
+      continue;
+    }
+    resultWords.push(current);
+  }
+  return resultWords.join(' ');
+}
+
+/**
+ * Remove immediate consecutive duplicate phrases (e.g. "near the gate near the gate" -> "near the gate")
+ */
+export function cleanRepeatedPhrases(text) {
+  if (!text) return '';
+  text = cleanRepeatedWords(text);
+  const words = text.split(' ');
+  if (words.length < 4) return text;
+
+  let result = [...words];
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    const n = result.length;
+    for (let len = Math.floor(n / 2); len >= 2; len--) {
+      for (let i = 0; i <= n - 2 * len; i++) {
+        const p1 = result.slice(i, i + len).join(' ').toLowerCase();
+        const p2 = result.slice(i + len, i + 2 * len).join(' ').toLowerCase();
+        if (p1 === p2) {
+          result.splice(i + len, len);
+          changed = true;
+          break;
+        }
+      }
+      if (changed) break;
+    }
+  }
+  return result.join(' ');
+}
+
+/**
+ * Merges two transcript segments, removing overlapping words at the boundary
+ */
+export function mergeTranscripts(existing, addition) {
+  if (!existing) return (addition || '').trim();
+  if (!addition) return existing.trim();
+
+  existing = existing.trim();
+  addition = addition.trim();
+
+  if (existing.toLowerCase() === addition.toLowerCase()) return existing;
+  if (addition.toLowerCase().startsWith(existing.toLowerCase())) return addition;
+  if (existing.toLowerCase().endsWith(addition.toLowerCase())) return existing;
+
+  const existingWords = existing.split(/\s+/);
+  const additionWords = addition.split(/\s+/);
+
+  let maxOverlap = 0;
+  const checkLen = Math.min(existingWords.length, additionWords.length, 6);
+
+  for (let i = 1; i <= checkLen; i++) {
+    const endSlice = existingWords.slice(-i).join(' ').toLowerCase();
+    const startSlice = additionWords.slice(0, i).join(' ').toLowerCase();
+    if (endSlice === startSlice) {
+      maxOverlap = i;
+    }
+  }
+
+  if (maxOverlap > 0) {
+    const remaining = additionWords.slice(maxOverlap).join(' ');
+    return remaining ? `${existing} ${remaining}`.trim() : existing;
+  }
+
+  return `${existing} ${addition}`.trim();
+}
+
 export class SpeechService {
   constructor() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -26,13 +112,13 @@ export class SpeechService {
     this.isListening = false;
     this.shouldBeListening = false;
     this.currentTranscript = '';
-    this.finalTranscript = '';
-    this.restartAttempts = 0;
-    this.maxRestartAttempts = 3;
+    this.accumulatedText = '';
+    this.currentSessionFinal = '';
 
     if (this.recognition) {
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
+      this.recognition.maxAlternatives = 1;
       this.recognition.lang = 'en-IN';
     }
   }
@@ -52,38 +138,41 @@ export class SpeechService {
       const speechLang = getSpeechLangCode(lang);
       this.recognition.lang = speechLang;
       console.log(`[SPEECH SERVICE] Starting speech recognition in language: ${speechLang}`);
-      
+
       this.shouldBeListening = true;
       this.isListening = true;
       this.currentTranscript = '';
-      this.finalTranscript = '';
       this.accumulatedText = '';
-      this.restartAttempts = 0;
+      this.currentSessionFinal = '';
 
       this.recognition.onresult = (event) => {
         let sessionFinal = '';
         let interimStr = '';
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const chunk = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
+        // Safely iterate through all results in the current session
+        for (let i = 0; i < event.results.length; ++i) {
+          const res = event.results[i];
+          const chunk = res[0] ? res[0].transcript : '';
+          if (res.isFinal) {
             sessionFinal += chunk + ' ';
           } else {
             interimStr += chunk;
           }
         }
 
-        if (sessionFinal) {
-          this.accumulatedText = (this.accumulatedText + ' ' + sessionFinal).trim();
-        }
+        sessionFinal = cleanRepeatedPhrases(sessionFinal.trim());
+        interimStr = interimStr.trim();
 
-        this.currentTranscript = (this.accumulatedText + ' ' + interimStr).trim();
+        this.currentSessionFinal = sessionFinal;
+        const combinedFinal = cleanRepeatedPhrases(mergeTranscripts(this.accumulatedText, sessionFinal));
+        const fullText = cleanRepeatedPhrases((combinedFinal + (interimStr ? ' ' + interimStr : '')).trim());
+        this.currentTranscript = fullText;
 
         if (onResult) {
           onResult({
-            finalTranscript: this.accumulatedText,
-            interimTranscript: interimStr.trim(),
-            fullText: this.currentTranscript
+            finalTranscript: combinedFinal,
+            interimTranscript: interimStr,
+            fullText: fullText
           });
         }
       };
@@ -91,7 +180,7 @@ export class SpeechService {
       this.recognition.onerror = (event) => {
         console.warn('[SPEECH SERVICE ERROR EVENT]', event.error);
 
-        // Ignore 'no-speech' error if user just paused, do not crash UI or exit
+        // Ignore 'no-speech' error if user just paused
         if (event.error === 'no-speech') {
           return;
         }
@@ -118,7 +207,13 @@ export class SpeechService {
         console.log('[SPEECH SERVICE] Recognition segment ended.');
         this.isListening = false;
 
-        // Auto-restart continuously as long as user is on the listening screen
+        // Safely commit final text of ended session to accumulatedText
+        if (this.currentSessionFinal) {
+          this.accumulatedText = cleanRepeatedPhrases(mergeTranscripts(this.accumulatedText, this.currentSessionFinal));
+          this.currentSessionFinal = '';
+        }
+
+        // Auto-restart continuously on mobile if user is still on the recording screen
         if (this.shouldBeListening) {
           console.log('[SPEECH SERVICE] Continuous listening: restarting recognition loop...');
           try {
@@ -139,7 +234,7 @@ export class SpeechService {
           }
         }
 
-        if (onEnd) onEnd(this.currentTranscript);
+        if (onEnd) onEnd(this.accumulatedText || this.currentTranscript);
       };
 
       this.recognition.start();
@@ -163,9 +258,17 @@ export class SpeechService {
       }
       this.isListening = false;
     }
-    return this.currentTranscript;
+
+    if (this.currentSessionFinal) {
+      this.accumulatedText = cleanRepeatedPhrases(mergeTranscripts(this.accumulatedText, this.currentSessionFinal));
+      this.currentSessionFinal = '';
+    }
+    this.accumulatedText = cleanRepeatedPhrases(this.accumulatedText);
+    this.currentTranscript = this.accumulatedText;
+    return this.accumulatedText;
   }
 }
 
 export const speechService = new SpeechService();
+
 

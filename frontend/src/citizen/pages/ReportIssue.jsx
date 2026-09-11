@@ -29,9 +29,8 @@ import {
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Textarea } from '../../shared/components/Textarea';
-import { FileUpload } from '../../shared/components/FileUpload';
 import { Modal } from '../../shared/components/Modal';
-import { speechService } from '../../services/speech/speechService';
+import { speechService, cleanRepeatedPhrases } from '../../services/speech/speechService';
 import { locationService } from '../../services/location/locationService';
 import { issuesApi } from '../../services/api/issuesApi';
 import { authApi } from '../../services/api/authApi';
@@ -157,8 +156,8 @@ export const ReportIssue = ({ onNavigate }) => {
 
     const started = speechService.startListening({
       lang: selectedVoiceLang || 'en',
-      onResult: ({ fullText, interimTranscript }) => {
-        setVoiceText(fullText);
+      onResult: ({ finalTranscript, interimTranscript }) => {
+        setVoiceText(finalTranscript);
         setInterimText(interimTranscript);
       },
       onError: (err) => {
@@ -170,7 +169,7 @@ export const ReportIssue = ({ onNavigate }) => {
         if (speechService.shouldBeListening) return;
         setIsRecording(false);
         setInterimText('');
-        const textToValidate = (finalText || voiceText || '').trim();
+        const textToValidate = cleanRepeatedPhrases((finalText || voiceText || '').trim());
         if (textToValidate) {
           setVoiceText(textToValidate);
           setActiveStep(1);
@@ -191,7 +190,7 @@ export const ReportIssue = ({ onNavigate }) => {
   // Handle Speech Recording Stop & Auto AI Validation
   const handleStopRecording = () => {
     const capturedText = speechService.stopListening();
-    const finalSpeechText = (capturedText || voiceText || '').trim();
+    const finalSpeechText = cleanRepeatedPhrases((capturedText || voiceText || interimText || '').trim());
     if (finalSpeechText) {
       setVoiceText(finalSpeechText);
     }
@@ -1209,8 +1208,8 @@ export const ReportIssue = ({ onNavigate }) => {
           }}>
             {liveText ? (
               <span>
-                <strong style={{ color: 'var(--color-brand-primary)' }}>"{voiceText}"</strong>
-                {interimText && <span style={{ color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}> {interimText}</span>}
+                {voiceText && <strong style={{ color: 'var(--color-brand-primary)' }}>{voiceText} </strong>}
+                {interimText && <span style={{ color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>{interimText}</span>}
               </span>
             ) : (
               <span style={{ fontStyle: 'italic' }}>
