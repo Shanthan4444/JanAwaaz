@@ -153,6 +153,7 @@ export const ReportIssue = ({ onNavigate }) => {
     setRecordingError(null);
     setIsRecording(true);
     setInterimText('');
+    setAiAnalysis(null);
     setActiveStep(2);
 
     const started = speechService.startListening({
@@ -210,6 +211,7 @@ export const ReportIssue = ({ onNavigate }) => {
     setIsRecording(false);
     setVoiceText('');
     setInterimText('');
+    setAiAnalysis(null);
     setVoiceValidation({
       status: 'IDLE',
       isValidated: false,
@@ -576,13 +578,19 @@ export const ReportIssue = ({ onNavigate }) => {
     setIsSubmitting(true);
     setSubmissionError(null);
 
-    const description = voiceText.trim() || 'Civic problem described by citizen.';
-    const category = aiAnalysis?.category || 'Road Damage';
+    const description = (voiceText || '').trim() || 'Civic problem described by citizen.';
+    const category = aiAnalysis?.category || voiceValidation.category || 'Road Damage';
     const department = aiAnalysis?.department || 'Roads & Infrastructure';
+
+    // Title strictly matches the citizen's actual complaint
+    let titleToUse = cleanRepeatedPhrases(aiAnalysis?.summary || aiAnalysis?.issueTitle || '');
+    if (!titleToUse || titleToUse.length < 3 || titleToUse.toLowerCase().includes('unknown')) {
+      titleToUse = cleanRepeatedPhrases(description.slice(0, 60));
+    }
 
     try {
       const created = await issuesApi.createIssue({
-        title: aiAnalysis?.summary || aiAnalysis?.issueTitle || description.slice(0, 60),
+        title: titleToUse,
         description,
         category,
         department,
