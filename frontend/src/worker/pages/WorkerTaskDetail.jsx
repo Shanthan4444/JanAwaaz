@@ -10,6 +10,7 @@ import { TaskTimeline } from '../components/TaskTimeline';
 import { WorkerUpdateForm } from '../components/WorkerUpdateForm';
 import { ResolutionForm } from '../components/ResolutionForm';
 import { ArrowLeft, Play, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { resolveImageUrl } from '../../shared/utils/imageUtils';
 
 export const WorkerTaskDetail = ({ taskId = 'JAN-2026-1042', onNavigate }) => {
   const [task, setTask] = useState(null);
@@ -200,11 +201,23 @@ export const WorkerTaskDetail = ({ taskId = 'JAN-2026-1042', onNavigate }) => {
             <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>
               Citizen Photo Evidence
             </span>
-            <img
-              src={task.evidence[0].url || task.evidence[0]}
-              alt="Citizen Evidence"
-              style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: 'var(--radius-md)', marginTop: '4px' }}
-            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: '8px' }}>
+              {task.evidence.map((ev, idx) => (
+                <img
+                  key={idx}
+                  src={resolveImageUrl(ev)}
+                  alt={`Citizen Evidence ${idx + 1}`}
+                  style={{
+                    width: task.evidence.length === 1 ? '100%' : 'calc(50% - var(--space-1))',
+                    maxHeight: '220px',
+                    objectFit: 'cover',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border-default)'
+                  }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ))}
+            </div>
           </div>
         )}
       </Card>
