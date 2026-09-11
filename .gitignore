@@ -1,0 +1,11 @@
+# Node & Build artifacts
+node_modules/
+dist/
+build/
+.DS_Store
+*.log
+
+# Environment variables
+.env
+.env.*
+!.env.example
