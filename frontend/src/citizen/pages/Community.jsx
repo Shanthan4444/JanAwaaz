@@ -184,7 +184,12 @@ export const Community = ({ onNavigate }) => {
               <IssueCard
                 key={issue.id}
                 issue={issue}
-                onNavigateTrack={(id) => onNavigate ? onNavigate(`/track/${id}`) : (window.location.hash = `/track/${id}`)}
+                onNavigateTrack={(id) => {
+                  // Real backend issues use issueId (JAN-XXX-XXXX), not MongoDB _id
+                  const trackId = issue.issueId || issue.id;
+                  if (onNavigate) onNavigate(`/track/${trackId}`);
+                  else window.location.hash = `/track/${trackId}`;
+                }}
                 onAffectsMeToo={handleAffectsMeToo}
               />
             ))

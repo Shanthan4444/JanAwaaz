@@ -29,7 +29,9 @@ const getStageIndex = (status) => {
   }
 };
 
-export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
+export const TrackIssue = ({ issueId }) => {
+  // Guard: issueId must be a valid non-empty string (not the literal "undefined")
+  const resolvedId = issueId && issueId !== 'undefined' ? issueId : null;
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,18 +39,23 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
   const [reopenReason, setReopenReason] = useState('');
 
   const fetchIssueData = async () => {
+    if (!resolvedId) {
+      setError('No valid issue ID provided. Please navigate to an issue from the community feed or your issues list.');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const realData = await issuesApi.getIssue(issueId);
+      const realData = await issuesApi.getIssue(resolvedId);
       setIssue(realData);
     } catch (apiErr) {
-      console.warn(`[TRACK ISSUE] Real API lookup for ${issueId} failed, checking mock fallback...`, apiErr);
+      console.warn(`[TRACK ISSUE] Real API lookup for ${resolvedId} failed, checking mock fallback...`, apiErr);
       try {
-        const mockData = await mockApi.getIssue(issueId);
+        const mockData = await mockApi.getIssue(resolvedId);
         setIssue(mockData);
       } catch (mockErr) {
-        setError(`Issue '${issueId}' could not be found in MongoDB.`);
+        setError(`Issue '${resolvedId}' could not be found. It may have been removed or the ID is invalid.`);
       }
     } finally {
       setLoading(false);
@@ -59,12 +66,12 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
     fetchIssueData();
     const unsubscribe = mockApi.subscribe(fetchIssueData);
     return unsubscribe;
-  }, [issueId]);
+  }, [resolvedId]);
 
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: 'var(--space-12)' }}>
-        <LoadingState message={`Retrieving real MongoDB document for ${issueId}...`} />
+        <LoadingState message={`Retrieving issue data for ${resolvedId}...`} />
       </div>
     );
   }
@@ -74,9 +81,9 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
       <div className="container" style={{ maxWidth: '640px', paddingTop: 'var(--space-12)' }}>
         <EmptyState
           title="Issue Not Found"
-          description={`No record found in MongoDB database for issue ID '${issueId}'.`}
-          actionText="Back to Home"
-          onAction={() => (window.location.hash = '/')}
+          description={error || `No record found for issue ID '${resolvedId}'.`}
+          actionText="Back to Community"
+          onAction={() => (window.location.hash = '/community')}
         />
       </div>
     );

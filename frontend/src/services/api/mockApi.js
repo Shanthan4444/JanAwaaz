@@ -50,7 +50,9 @@ export const mockApi = {
       console.warn(`[mockApi] API getIssue for ${id} fallback to memory store`);
     }
 
-    return issuesStore.find((i) => i.id === id || i.issueId === id) || issuesStore[0];
+    const found = issuesStore.find((i) => i.id === id || i.issueId === id);
+    if (!found) throw new Error(`Issue '${id}' not found in memory store`);
+    return found;
   },
 
   createIssue: async (data) => {
