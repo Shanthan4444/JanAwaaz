@@ -1,4 +1,5 @@
 // Mock community issues — diverse departments, all within 3km radius
+// All evidence photos are carefully matched to the exact issue type
 export const COMMUNITY_MOCK_ISSUES = [
   {
     id: 'JAN-MOCK-001',
@@ -13,7 +14,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 0.4,
     affectsMeToo: 34,
     reportedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80'],
+    // Actual pothole in road surface
+    evidence: ['https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-002',
@@ -28,7 +30,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 0.7,
     affectsMeToo: 51,
     reportedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80'],
+    // Street lamp / lamp post at night
+    evidence: ['https://images.unsplash.com/photo-1552084162-c3f83c06e023?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-003',
@@ -43,7 +46,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 1.1,
     affectsMeToo: 78,
     reportedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=800&q=80'],
+    // Flooded street / stormwater drain overflow
+    evidence: ['https://images.unsplash.com/photo-1611270629569-8b357cb88da9?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-004',
@@ -58,7 +62,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 1.4,
     affectsMeToo: 92,
     reportedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=800&q=80'],
+    // Dry tap / water shortage / broken water pipe
+    evidence: ['https://images.unsplash.com/photo-1548032885-b5e38734688a?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-005',
@@ -73,7 +78,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 1.8,
     affectsMeToo: 43,
     reportedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=800&q=80'],
+    // Overflowing garbage / waste pile on street
+    evidence: ['https://images.unsplash.com/photo-1604187351574-c75ca79f5807?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-006',
@@ -88,7 +94,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 2.0,
     affectsMeToo: 29,
     reportedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=800&q=80'],
+    // Cracked / broken pavement tiles on sidewalk
+    evidence: ['https://images.unsplash.com/photo-1508450859948-4e04fabaa4ea?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-007',
@@ -103,7 +110,8 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 2.3,
     affectsMeToo: 17,
     reportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1596005554384-d293674c91d7?auto=format&fit=crop&w=800&q=80'],
+    // Damaged / broken park bench
+    evidence: ['https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-008',
@@ -118,6 +126,7 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 2.6,
     affectsMeToo: 64,
     reportedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    // Stray dog on road / street
     evidence: ['https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=800&q=80'],
   },
   {
@@ -133,12 +142,13 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 1.6,
     affectsMeToo: 115,
     reportedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    // Electric power transformer / utility infrastructure
     evidence: ['https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80'],
   },
   {
     id: 'JAN-MOCK-010',
-    title: 'Encroachment on public footpath',
-    description: 'Shopkeepers have set up permanent stalls on public footpath, forcing pedestrians onto the road.',
+    title: 'Encroachment on public footpath by shops',
+    description: 'Shopkeepers have set up permanent stalls on public footpath, forcing pedestrians onto the busy road.',
     status: 'PENDING',
     priorityLevel: 'MEDIUM',
     category: 'ENCROACHMENT',
@@ -148,6 +158,7 @@ export const COMMUNITY_MOCK_ISSUES = [
     distanceKm: 0.9,
     affectsMeToo: 38,
     reportedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    evidence: ['https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80'],
+    // Street vendors / market stalls encroaching on public footpath
+    evidence: ['https://images.unsplash.com/photo-1567521464027-f127ff144326?auto=format&fit=crop&w=800&q=80'],
   },
 ];
