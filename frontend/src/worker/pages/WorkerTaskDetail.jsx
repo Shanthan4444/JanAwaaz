@@ -169,9 +169,10 @@ export const WorkerTaskDetail = ({ taskId = 'JAN-2026-1042', onNavigate }) => {
                   <div style={{ marginTop: 'var(--space-2)' }}>
                     <strong>Proof Photo:</strong>
                     <img
-                      src={task.resolution.evidence[0].url}
+                      src={resolveImageUrl(task.resolution.evidence[0].url || task.resolution.evidence[0])}
                       alt="Resolution Proof"
-                      style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: '4px' }}
+                      style={{ display: 'block', width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: '4px' }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   </div>
                 )}
