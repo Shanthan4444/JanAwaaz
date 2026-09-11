@@ -29,6 +29,7 @@ import {
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
 import { Textarea } from '../../shared/components/Textarea';
+import { Modal } from '../../shared/components/Modal';
 import { FileUpload } from '../../shared/components/FileUpload';
 import { speechService, cleanRepeatedPhrases, generateSummarizedTitle } from '../../services/speech/speechService';
 import { locationService } from '../../services/location/locationService';

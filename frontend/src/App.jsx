@@ -33,6 +33,52 @@ import { WorkerDashboard } from './worker/pages/WorkerDashboard';
 import { WorkerTaskDetail } from './worker/pages/WorkerTaskDetail';
 import { WorkerProfile } from './worker/pages/WorkerProfile';
 
+class GlobalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[GLOBAL APP ERROR CAUGHT]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-bg-base, #F8FAFC)', padding: '24px', fontFamily: 'sans-serif' }}>
+          <div style={{ maxWidth: '480px', width: '100%', backgroundColor: 'var(--color-bg-surface, #FFFFFF)', borderRadius: '16px', padding: '32px', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', border: '1px solid var(--color-border-default, #E2E8F0)' }}>
+            <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '24px' }}>
+              ⚠️
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', marginBottom: '8px' }}>
+              Interface Notice
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary, #64748B)', marginBottom: '24px', lineHeight: 1.5 }}>
+              {this.state.error?.message || 'A temporary display issue occurred.'}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.hash = '/report';
+                  window.location.reload();
+                }}
+                style={{ padding: '10px 20px', backgroundColor: 'var(--color-brand-primary, #2563EB)', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '13px' }}
+              >
+                Reload & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AppContent() {
   const [currentPath, setCurrentPath] = useState(window.location.hash.replace('#', '') || '/');
   const { isAuthenticated, role } = useAuth();
@@ -128,7 +174,11 @@ function AppContent() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar currentPath={currentPath} onNavigate={navigateTo} />
-      <main style={{ flex: 1 }}>{renderCurrentPage()}</main>
+      <main style={{ flex: 1 }}>
+        <GlobalErrorBoundary>
+          {renderCurrentPage()}
+        </GlobalErrorBoundary>
+      </main>
       <Footer onNavigate={navigateTo} />
     </div>
   );
@@ -136,12 +186,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <GlobalErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </GlobalErrorBoundary>
   );
 }

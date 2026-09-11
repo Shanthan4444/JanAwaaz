@@ -182,12 +182,15 @@ const LeafletMapPickerInner = ({
 
     if (window.L) {
       initMap();
-    } else if (!document.getElementById('leaflet-js')) {
-      const script = document.createElement('script');
-      script.id = 'leaflet-js';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => initMap();
-      document.head.appendChild(script);
+    } else {
+      let script = document.getElementById('leaflet-js');
+      if (!script) {
+        script = document.createElement('script');
+        script.id = 'leaflet-js';
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        document.head.appendChild(script);
+      }
+      script.addEventListener('load', () => initMap());
     }
 
     // Safely cleanup map on unmount
