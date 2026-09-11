@@ -12,9 +12,7 @@ import { Textarea } from '../../shared/components/Textarea';
 import { LoadingState } from '../../shared/components/LoadingState';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { issuesApi } from '../../services/api/issuesApi';
-import { mockApi } from '../../services/api/mockApi';
-import { ThumbsUp, Users, MapPin, Calendar, CheckCircle2, RotateCcw, Award, AlertTriangle, Cpu, Sparkles, AlertCircle } from 'lucide-react';
-import { resolveImageUrl } from '../../shared/utils/imageUtils';
+import { MapPin, Calendar, CheckCircle2, RotateCcw, Award, AlertTriangle, Cpu, AlertCircle } from 'lucide-react';
 
 const getStageIndex = (status) => {
   switch (status) {
@@ -81,34 +79,6 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
       </div>
     );
   }
-
-  const handleSupport = async () => {
-    try {
-      const { communityApi } = await import('../../services/api/communityApi');
-      const res = await communityApi.supportIssue(issue.issueId || issue.id);
-      if (res && typeof res.supportersCount === 'number') {
-        setIssue((prev) => ({ ...prev, supporters: res.supportersCount }));
-      } else {
-        await fetchIssueData();
-      }
-    } catch (err) {
-      alert(err.message || 'Support action failed. Please sign in as a citizen.');
-    }
-  };
-
-  const handleVolunteer = async () => {
-    try {
-      const { communityApi } = await import('../../services/api/communityApi');
-      const res = await communityApi.volunteer(issue.issueId || issue.id);
-      if (res && typeof res.volunteersCount === 'number') {
-        setIssue((prev) => ({ ...prev, volunteers: res.volunteersCount }));
-      } else {
-        await fetchIssueData();
-      }
-    } catch (err) {
-      alert(err.message || 'Volunteer action failed. Please sign in as a citizen.');
-    }
-  };
 
   const handleVerifyYes = async () => {
     try {
@@ -261,12 +231,9 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-primary)' }}>
                 <Cpu size={20} />
                 <h3 style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-                  JANSETU AI CIVIC INTELLIGENCE DIAGNOSTIC
+                  JANAWAAZ AI CIVIC INTELLIGENCE DIAGNOSTIC
                 </h3>
               </div>
-              <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)' }}>
-                <Sparkles size={12} /> {ai.provider ? `Powered by ${ai.provider.toUpperCase()} (${ai.model || 'v1'})` : 'AI Engine'}
-              </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-xs)' }}>
@@ -311,7 +278,7 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
                   WHY {ai.severity || 'HIGH'} PRIORITY? (AI CIVIC REASONING {ai.detectedLanguage ? `• ${ai.detectedLanguage.toUpperCase()}` : ''})
                 </strong>
                 <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5, marginTop: '4px' }}>
-                  {ai.reasoningNative || ai.reasoning}
+                  {(ai.reasoningNative || ai.reasoning || '').replace(/featherless\s*ai/gi, 'JanAwaaz Civic Intelligence').replace(/featherless\s*vlm/gi, 'JanAwaaz AI').replace(/featherless/gi, 'JanAwaaz')}
                 </p>
               </div>
             )}
@@ -410,39 +377,6 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
 
         {/* Right Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* Community Engagement */}
-          <Card style={{ backgroundColor: 'var(--color-bg-surface-elevated)' }}>
-            <h4 style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 'var(--space-3)' }}>
-              COMMUNITY PANEL
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-xs)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ThumbsUp size={14} style={{ color: 'var(--color-brand-primary)' }} />
-                  Supporters
-                </span>
-                <strong style={{ color: 'var(--color-text-primary)', fontSize: 'var(--font-sm)' }}>{issue.supporters || 1} people</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Users size={14} style={{ color: 'var(--status-verified)' }} />
-                  Volunteers Helping
-                </span>
-                <strong style={{ color: 'var(--color-text-primary)', fontSize: 'var(--font-sm)' }}>{issue.volunteers || 0} volunteers</strong>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <Button variant="outline" icon={ThumbsUp} onClick={handleSupport}>
-                SUPPORT ISSUE (+15 Impact)
-              </Button>
-              <Button variant="secondary" icon={Users} onClick={handleVolunteer}>
-                VOLUNTEER (+30 Impact)
-              </Button>
-            </div>
-          </Card>
-
           {/* Assigned Worker Contact Card */}
           {issue.assignedWorker && (
             <Card style={{ backgroundColor: 'var(--color-bg-surface-elevated)', border: '1px solid var(--color-brand-border)', boxShadow: 'var(--shadow-glow-indigo)' }}>
@@ -501,10 +435,6 @@ export const TrackIssue = ({ issueId = 'JAN-2026-1042' }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-tertiary)' }}>AI Priority Score</span>
                 <strong style={{ color: 'var(--status-resolved)' }}>{issue.priority || 85} / 100</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-tertiary)' }}>AI Provider</span>
-                <strong style={{ color: 'var(--color-brand-primary)', textTransform: 'capitalize' }}>{ai.provider || 'featherless'}</strong>
               </div>
             </div>
           </Card>

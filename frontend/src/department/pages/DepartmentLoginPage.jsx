@@ -130,7 +130,7 @@ export const DepartmentLoginPage = ({ onNavigate }) => {
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
           <div style={{ fontSize: '48px', marginBottom: 'var(--space-2)' }}>{selectedDept.icon}</div>
           <span style={{ fontSize: '10px', color: 'var(--color-brand-primary)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.08em' }}>
-            JANSETU • {selectedDept.department.toUpperCase()} OPERATIONS
+            JANAWAAZ • {selectedDept.department.toUpperCase()} OPERATIONS
           </span>
           <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 900, color: 'var(--color-text-primary)', marginTop: '4px' }}>
             {selectedDept.department} Login

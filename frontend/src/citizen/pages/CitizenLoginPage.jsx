@@ -15,7 +15,7 @@ export const CitizenLoginPage = ({ onNavigate }) => {
           {activeTab === 'citizen' ? <User size={28} /> : <Wrench size={28} />}
         </div>
         <h1 style={{ fontSize: 'var(--font-2xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-          {activeTab === 'citizen' ? 'JANSETU CITIZEN ACCESS' : 'FIELD WORKER PORTAL'}
+          {activeTab === 'citizen' ? 'JANAWAAZ CITIZEN ACCESS' : 'FIELD WORKER PORTAL'}
         </h1>
         <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
           {activeTab === 'citizen'

@@ -11,7 +11,7 @@ export const AuthorityLoginPage = ({ onNavigate }) => {
           <Shield size={28} />
         </div>
         <h1 style={{ fontSize: 'var(--font-2xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-          JANSETU AUTHORITY
+          JANAWAAZ AUTHORITY
         </h1>
         <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
           Manage the issues that need action.

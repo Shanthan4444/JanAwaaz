@@ -34,7 +34,7 @@ export const WorkerLogin = ({ onSuccess }) => {
     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div>
         <h3 style={{ fontSize: 'var(--font-xl)', fontWeight: 900, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
-          JANSETU FIELD OPERATIONS
+          JANAWAAZ FIELD OPERATIONS
         </h3>
         <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
           View and resolve the civic issues assigned to you.

@@ -48,8 +48,8 @@ export const issueService = {
         duplicateRisk: 0.05,
         possibleDuplicates: [],
         summary: payload.title || payload.description?.slice(0, 60) || 'Civic issue report',
-        reasoning: 'Pre-validated civic problem report verified by Featherless AI.',
-        provider: 'Featherless VLM',
+        reasoning: 'Pre-validated civic problem report verified by JanAwaaz Civic Intelligence.',
+        provider: 'JanAwaaz AI Engine',
         model: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
         promptVersion: 'issue-analysis-v1',
         status: 'ANALYZED'

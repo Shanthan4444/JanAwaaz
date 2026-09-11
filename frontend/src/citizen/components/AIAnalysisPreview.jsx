@@ -50,7 +50,7 @@ export const AIAnalysisPreview = ({
             {!isComplete ? 'UNDERSTANDING YOUR REPORT...' : 'JanAwaaz AI Analysis Complete'}
           </h4>
           <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-            Featherless AI Civic Intelligence Diagnostic Output
+            Civic Intelligence Diagnostic Output
           </span>
         </div>
       </div>

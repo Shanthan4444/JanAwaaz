@@ -176,7 +176,7 @@ export const AuthorityAnalytics = ({ onNavigate }) => {
                   </h3>
                 </div>
                 <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)' }}>
-                  <Sparkles size={12} /> {insights.provider ? `Powered by ${insights.provider.toUpperCase()}` : 'Featherless AI Engine'}
+                  <Sparkles size={12} /> AI Civic Analytics Engine
                 </span>
               </div>
 

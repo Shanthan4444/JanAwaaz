@@ -260,7 +260,7 @@ export const AuthorityIssueDetail = ({ issueId = 'JAN-2026-1042', onNavigate }) 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-primary)' }}>
                 <Cpu size={20} />
                 <h3 style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-                  JANSETU AI RECOMMENDATION
+                  JANAWAAZ AI RECOMMENDATION
                 </h3>
               </div>
               <Button variant="outline" size="sm" icon={Edit3} onClick={() => setOverrideModalOpen(true)}>
