@@ -77,10 +77,8 @@ export const Community = ({ onNavigate }) => {
   }, [loadIssues]);
 
   const handleAffectsMeToo = async (issueId, newCount) => {
-    // Optimistically update the list so count reflects immediately
-    setIssues((prev) =>
-      prev.map((i) => (i.id === issueId ? { ...i, affectsMeToo: newCount } : i))
-    );
+    // IssueCard manages its own count state — we do NOT update issues[] here
+    // to avoid triggering a re-render that causes double-counting via useEffect.
     // Optionally push to real backend here if API exists
     try {
       const { communityApi } = await import('../../services/api/communityApi');
