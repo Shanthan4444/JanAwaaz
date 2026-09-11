@@ -1,20 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Component } from 'react';
 import { MapPin, Navigation, RefreshCw } from 'lucide-react';
 import { locationService } from '../../services/location/locationService';
 
-export const LeafletMapPicker = ({
-  initialLocation = { latitude: 17.3850, longitude: 78.4867, area: 'Khairatabad', landmark: 'Hussain Sagar' },
+// Error boundary to protect against Leaflet runtime / DOM crashes
+class MapErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.warn('[LEAFLET MAP ERROR BOUNDARY]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || null;
+    }
+    return this.props.children;
+  }
+}
+
+const LeafletMapPickerInner = ({
+  initialLocation,
   onChange
 }) => {
   const mapContainerRef = useRef(null);
   const leafletMapRef = useRef(null);
   const markerRef = useRef(null);
 
+  const safeLat = typeof initialLocation?.latitude === 'number' && !isNaN(initialLocation.latitude)
+    ? initialLocation.latitude
+    : 17.3850;
+  const safeLng = typeof initialLocation?.longitude === 'number' && !isNaN(initialLocation.longitude)
+    ? initialLocation.longitude
+    : 78.4867;
+
   const [coords, setCoords] = useState({
-    latitude: initialLocation.latitude || 17.3850,
-    longitude: initialLocation.longitude || 78.4867,
-    area: initialLocation.area || 'Khairatabad / Banjara Hills',
-    landmark: initialLocation.landmark || ''
+    latitude: safeLat,
+    longitude: safeLng,
+    area: initialLocation?.area || 'University Sector',
+    landmark: initialLocation?.landmark || 'Main Entrance Gate'
   });
 
   const [isLocating, setIsLocating] = useState(false);
@@ -40,24 +67,30 @@ export const LeafletMapPicker = ({
       console.warn('[REVERSE GEOCODE WARN]', err);
     }
 
-    // Realistic fallback based on lat/lng coordinates
     if (lat > 17.41) return { area: 'Banjara Hills / Panjagutta', landmark: 'Road No. 12' };
     if (lat > 17.40) return { area: 'Khairatabad / Hussain Sagar', landmark: 'NTR Marg' };
     if (lat > 17.39) return { area: 'Himayat Nagar / Lakdi-ka-pul', landmark: 'Main Road' };
     if (lat > 17.38) return { area: 'Nampally / Abids', landmark: 'Station Road' };
-    return { area: 'Ghatkesar / ORR Service Road', landmark: 'ORR Exit' };
+    return { area: 'University Sector', landmark: 'Main Entrance Gate' };
   };
 
   const updateLocationState = (lat, lng, area, landmark) => {
+    const numLat = typeof lat === 'number' && !isNaN(lat) ? lat : safeLat;
+    const numLng = typeof lng === 'number' && !isNaN(lng) ? lng : safeLng;
+    const resolvedArea = area || coords.area || 'University Sector';
+    const resolvedLandmark = landmark || coords.landmark || '';
+
     const updated = {
-      latitude: Number(lat.toFixed(6)),
-      longitude: Number(lng.toFixed(6)),
-      area: area || coords.area,
-      landmark: landmark || coords.landmark,
-      address: `📍 ${area || coords.area}, (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`
+      latitude: Number(numLat.toFixed(6)),
+      longitude: Number(numLng.toFixed(6)),
+      area: resolvedArea,
+      landmark: resolvedLandmark,
+      address: `📍 ${resolvedArea}, (${numLat.toFixed(4)}° N, ${numLng.toFixed(4)}° E)`
     };
     setCoords(updated);
-    if (onChange) onChange(updated);
+    if (onChange) {
+      try { onChange(updated); } catch (e) {}
+    }
   };
 
   // Fetch Live GPS Location on Mount & on Button Click
@@ -65,15 +98,19 @@ export const LeafletMapPicker = ({
     setIsLocating(true);
     try {
       const gpsLoc = await locationService.getCurrentLocation();
-      const lat = gpsLoc.latitude;
-      const lng = gpsLoc.longitude;
+      if (gpsLoc && typeof gpsLoc.latitude === 'number') {
+        const lat = gpsLoc.latitude;
+        const lng = gpsLoc.longitude;
 
-      if (leafletMapRef.current && markerRef.current) {
-        leafletMapRef.current.setView([lat, lng], 15);
-        markerRef.current.setLatLng([lat, lng]);
+        if (leafletMapRef.current && markerRef.current) {
+          try {
+            leafletMapRef.current.setView([lat, lng], 15);
+            markerRef.current.setLatLng([lat, lng]);
+          } catch (e) {}
+        }
+
+        updateLocationState(lat, lng, gpsLoc.area, gpsLoc.landmark);
       }
-
-      updateLocationState(lat, lng, gpsLoc.area, gpsLoc.landmark);
     } catch (err) {
       console.warn('[GPS FETCH WARN]', err);
     } finally {
@@ -91,48 +128,56 @@ export const LeafletMapPicker = ({
       document.head.appendChild(link);
     }
 
-    const initMap = async () => {
-      if (!window.L || !mapContainerRef.current || leafletMapRef.current) return;
+    const initMap = () => {
+      if (!window.L || !mapContainerRef.current) return;
 
-      const defaultLat = coords.latitude;
-      const defaultLng = coords.longitude;
+      // Avoid "Map container is already initialized" error
+      if (leafletMapRef.current) {
+        try { leafletMapRef.current.remove(); } catch (e) {}
+        leafletMapRef.current = null;
+      }
+      if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
 
-      const map = window.L.map(mapContainerRef.current, {
-        center: [defaultLat, defaultLng],
-        zoom: 14,
-        zoomControl: true
-      });
+      try {
+        const defaultLat = coords.latitude;
+        const defaultLng = coords.longitude;
 
-      leafletMapRef.current = map;
+        const map = window.L.map(mapContainerRef.current, {
+          center: [defaultLat, defaultLng],
+          zoom: 14,
+          zoomControl: true
+        });
 
-      // Add OpenStreetMap Tile Layer
-      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '🏢 Leaflet | © OpenStreetMap'
-      }).addTo(map);
+        leafletMapRef.current = map;
 
-      // Custom Red Pin Marker
-      const marker = window.L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
-      markerRef.current = marker;
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '🏢 Leaflet | © OpenStreetMap'
+        }).addTo(map);
 
-      const handlePinMove = async (lat, lng) => {
-        const geoInfo = await reverseGeocode(lat, lng);
-        updateLocationState(lat, lng, geoInfo.area, geoInfo.landmark);
-      };
+        const marker = window.L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+        markerRef.current = marker;
 
-      map.on('click', (e) => {
-        const { lat, lng } = e.latlng;
-        marker.setLatLng([lat, lng]);
-        handlePinMove(lat, lng);
-      });
+        const handlePinMove = async (lat, lng) => {
+          const geoInfo = await reverseGeocode(lat, lng);
+          updateLocationState(lat, lng, geoInfo.area, geoInfo.landmark);
+        };
 
-      marker.on('dragend', () => {
-        const pos = marker.getLatLng();
-        handlePinMove(pos.lat, pos.lng);
-      });
+        map.on('click', (e) => {
+          const { lat, lng } = e.latlng;
+          marker.setLatLng([lat, lng]);
+          handlePinMove(lat, lng);
+        });
 
-      // Auto-fetch real GPS location on mount!
-      fetchCurrentGpsLocation();
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          handlePinMove(pos.lat, pos.lng);
+        });
+      } catch (err) {
+        console.warn('[LEAFLET INIT SAFEGUARD ERROR]', err);
+      }
     };
 
     if (window.L) {
@@ -144,6 +189,17 @@ export const LeafletMapPicker = ({
       script.onload = () => initMap();
       document.head.appendChild(script);
     }
+
+    // Safely cleanup map on unmount
+    return () => {
+      if (leafletMapRef.current) {
+        try { leafletMapRef.current.remove(); } catch (e) {}
+        leafletMapRef.current = null;
+      }
+      if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
+    };
   }, []);
 
   const handleAreaChange = (val) => {
@@ -250,5 +306,22 @@ export const LeafletMapPicker = ({
         </div>
       </div>
     </div>
+  );
+};
+
+export const LeafletMapPicker = (props) => {
+  return (
+    <MapErrorBoundary fallback={
+      <div style={{ backgroundColor: 'var(--color-bg-surface-elevated)', border: '1px solid var(--color-brand-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', marginTop: 'var(--space-6)' }}>
+        <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 'var(--space-3)' }}>
+          📍 Location Details
+        </h3>
+        <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
+          📍 Area: {props.initialLocation?.area || 'University Sector'}
+        </p>
+      </div>
+    }>
+      <LeafletMapPickerInner {...props} />
+    </MapErrorBoundary>
   );
 };
