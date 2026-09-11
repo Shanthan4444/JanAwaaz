@@ -22,6 +22,7 @@ export const IssueCard = ({ issue, onNavigateTrack, onAffectsMeToo }) => {
   const [affectsCount, setAffectsCount] = useState(issue.affectsMeToo || 0);
   const [hasVoted, setHasVoted] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [pressed, setPressed] = useState(false);
 
   useEffect(() => {
     const store = getVoteStore();
@@ -32,25 +33,39 @@ export const IssueCard = ({ issue, onNavigateTrack, onAffectsMeToo }) => {
       setAffectsCount(issue.affectsMeToo || 0);
       setHasVoted(false);
     }
-  }, [issue.id, issue.affectsMeToo]);
+  }, [issue.id]); // intentionally omit issue.affectsMeToo — IssueCard owns count after mount
 
   const handleAffectsMeToo = async (e) => {
     e.stopPropagation();
-    if (hasVoted || voting) return;
+    if (voting) return;
+
+    // Micro-animation: press feedback
+    setPressed(true);
+    setTimeout(() => setPressed(false), 200);
+
     setVoting(true);
-
-    const newCount = affectsCount + 1;
-
-    // Persist locally immediately (optimistic update)
     const store = getVoteStore();
-    store[issue.id] = newCount;
-    setVoteStore(store);
-    setAffectsCount(newCount);
-    setHasVoted(true);
 
-    // Try to notify parent / real API
-    if (onAffectsMeToo) {
-      try { await onAffectsMeToo(issue.id, newCount); } catch {}
+    if (hasVoted) {
+      // --- UN-VOTE: toggle off ---
+      const newCount = Math.max(0, affectsCount - 1);
+      delete store[issue.id];
+      setVoteStore(store);
+      setAffectsCount(newCount);
+      setHasVoted(false);
+      if (onAffectsMeToo) {
+        try { await onAffectsMeToo(issue.id, newCount, false); } catch {}
+      }
+    } else {
+      // --- VOTE: toggle on ---
+      const newCount = affectsCount + 1;
+      store[issue.id] = newCount;
+      setVoteStore(store);
+      setAffectsCount(newCount);
+      setHasVoted(true);
+      if (onAffectsMeToo) {
+        try { await onAffectsMeToo(issue.id, newCount, true); } catch {}
+      }
     }
 
     setVoting(false);
@@ -147,8 +162,8 @@ export const IssueCard = ({ issue, onNavigateTrack, onAffectsMeToo }) => {
           <button
             id={`affects-me-too-${issue.id}`}
             onClick={handleAffectsMeToo}
-            disabled={hasVoted || voting}
-            title={hasVoted ? 'You already marked this issue as affecting you' : 'This affects me too!'}
+            disabled={voting}
+            title={hasVoted ? 'Click to remove your vote' : 'This affects me too! Click to vote'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -160,10 +175,12 @@ export const IssueCard = ({ issue, onNavigateTrack, onAffectsMeToo }) => {
               color: hasVoted ? 'var(--color-brand-primary)' : 'var(--color-text-secondary)',
               fontSize: 'var(--font-xs)',
               fontWeight: 800,
-              cursor: hasVoted ? 'default' : 'pointer',
+              cursor: voting ? 'wait' : 'pointer',
               transition: 'all 0.18s ease',
               flexShrink: 0,
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              transform: pressed ? 'scale(0.93)' : 'scale(1)',
+              userSelect: 'none'
             }}
           >
             <Users size={13} />
