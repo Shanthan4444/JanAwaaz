@@ -1,25 +1,84 @@
-import React from 'react';
-import { MapPin, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, ArrowRight, Users } from 'lucide-react';
 import { PriorityBadge } from './PriorityBadge';
 import { StatusBadge } from './StatusBadge';
 import { Button } from './Button';
 import { Card } from './Card';
 import { resolveImageUrl } from '../utils/imageUtils';
 
-export const IssueCard = ({ issue, onNavigateTrack }) => {
+// Persistent affects-me-too votes stored in localStorage
+const STORAGE_KEY = 'janawaaz_affects_me_too';
+
+const getVoteStore = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+};
+const setVoteStore = (store) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch {}
+};
+
+export const IssueCard = ({ issue, onNavigateTrack, onAffectsMeToo }) => {
   if (!issue) return null;
 
+  const [affectsCount, setAffectsCount] = useState(issue.affectsMeToo || 0);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [voting, setVoting] = useState(false);
+
+  useEffect(() => {
+    const store = getVoteStore();
+    if (store[issue.id]) {
+      setHasVoted(true);
+      setAffectsCount(store[issue.id]);
+    } else {
+      setAffectsCount(issue.affectsMeToo || 0);
+      setHasVoted(false);
+    }
+  }, [issue.id, issue.affectsMeToo]);
+
+  const handleAffectsMeToo = async (e) => {
+    e.stopPropagation();
+    if (hasVoted || voting) return;
+    setVoting(true);
+
+    const newCount = affectsCount + 1;
+
+    // Persist locally immediately (optimistic update)
+    const store = getVoteStore();
+    store[issue.id] = newCount;
+    setVoteStore(store);
+    setAffectsCount(newCount);
+    setHasVoted(true);
+
+    // Try to notify parent / real API
+    if (onAffectsMeToo) {
+      try { await onAffectsMeToo(issue.id, newCount); } catch {}
+    }
+
+    setVoting(false);
+  };
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor(diff / 60000);
+    if (h >= 24) return `${Math.floor(h / 24)}d ago`;
+    if (h >= 1) return `${h}h ago`;
+    return `${m}m ago`;
+  };
+
   return (
-    <Card className="animate-slide-up">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+    <Card className="animate-slide-up" style={{ transition: 'box-shadow 0.2s', cursor: 'default' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+
+        {/* Top row: image + content */}
         <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
           {issue.evidence && issue.evidence.length > 0 && (
             <img
               src={resolveImageUrl(issue.evidence[0])}
               alt={issue.title}
               style={{
-                width: '96px',
-                height: '96px',
+                width: '88px',
+                height: '88px',
                 borderRadius: 'var(--radius-md)',
                 objectFit: 'cover',
                 border: '1px solid var(--color-border-subtle)',
@@ -30,12 +89,14 @@ export const IssueCard = ({ issue, onNavigateTrack }) => {
           )}
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-1)' }}>
               <PriorityBadge priority={issue.priorityLevel || 'HIGH'} />
               <StatusBadge status={issue.status} />
-              <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-tertiary)', marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 800 }}>
-                {issue.id}
-              </span>
+              {issue.reportedAt && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginLeft: 'auto' }}>
+                  {timeAgo(issue.reportedAt)}
+                </span>
+              )}
             </div>
 
             <h3
@@ -68,19 +129,63 @@ export const IssueCard = ({ issue, onNavigateTrack }) => {
           </div>
         </div>
 
+        {/* Location + Dept row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border-subtle)', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <MapPin size={14} style={{ color: 'var(--color-brand-primary)' }} />
-            <span>{typeof issue.location === 'string' ? issue.location : `${issue.location?.area || 'Sector 14'}, ${issue.location?.landmark || ''}`}</span>
-            <span style={{ color: 'var(--color-text-tertiary)' }}>({issue.distanceText || '420m away'})</span>
+            <MapPin size={13} style={{ color: 'var(--color-brand-primary)', flexShrink: 0 }} />
+            <span>{typeof issue.location === 'string' ? issue.location : `${issue.location?.area || ''}, ${issue.location?.landmark || ''}`}</span>
+            {issue.distanceText && (
+              <span style={{ color: 'var(--color-brand-primary)', fontWeight: 700, marginLeft: '2px' }}>· {issue.distanceText}</span>
+            )}
           </div>
-
-          <div>
-            <span>Dept: <strong style={{ color: 'var(--color-text-primary)' }}>{issue.department}</strong></span>
-          </div>
+          <span style={{ fontWeight: 600, color: 'var(--color-text-tertiary)' }}>{issue.department}</span>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-2)' }}>
+        {/* Action row: Affects Me Too + Track */}
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          {/* Affects Me Too */}
+          <button
+            id={`affects-me-too-${issue.id}`}
+            onClick={handleAffectsMeToo}
+            disabled={hasVoted || voting}
+            title={hasVoted ? 'You already marked this issue as affecting you' : 'This affects me too!'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-full)',
+              border: `1.5px solid ${hasVoted ? 'var(--color-brand-primary)' : 'var(--color-border-default)'}`,
+              backgroundColor: hasVoted ? 'var(--color-brand-subtle)' : 'transparent',
+              color: hasVoted ? 'var(--color-brand-primary)' : 'var(--color-text-secondary)',
+              fontSize: 'var(--font-xs)',
+              fontWeight: 800,
+              cursor: hasVoted ? 'default' : 'pointer',
+              transition: 'all 0.18s ease',
+              flexShrink: 0,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Users size={13} />
+            {hasVoted ? '✓ Affects Me Too' : 'Affects Me Too'}
+            <span
+              style={{
+                backgroundColor: hasVoted ? 'var(--color-brand-primary)' : 'var(--color-bg-surface-elevated)',
+                color: hasVoted ? '#fff' : 'var(--color-text-primary)',
+                borderRadius: 'var(--radius-full)',
+                padding: '1px 7px',
+                fontSize: '11px',
+                fontWeight: 900,
+                minWidth: '24px',
+                textAlign: 'center',
+                transition: 'all 0.18s ease'
+              }}
+            >
+              {affectsCount}
+            </span>
+          </button>
+
+          {/* Track button */}
           <Button
             variant="outline"
             size="sm"
@@ -90,9 +195,9 @@ export const IssueCard = ({ issue, onNavigateTrack }) => {
               if (onNavigateTrack) onNavigateTrack(issue.id);
               else window.location.hash = `/track/${issue.id}`;
             }}
-            style={{ width: '100%', borderColor: 'var(--color-border-default)', fontWeight: 700 }}
+            style={{ flex: 1, borderColor: 'var(--color-border-default)', fontWeight: 700 }}
           >
-            Track Resolution Progress
+            Track Progress
           </Button>
         </div>
       </div>

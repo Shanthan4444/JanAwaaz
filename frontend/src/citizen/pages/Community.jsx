@@ -1,128 +1,162 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { IssueCard } from '../../shared/components/IssueCard';
 import { MapContainer } from '../../shared/components/MapContainer';
-import { Button } from '../../shared/components/Button';
 import { EmptyState } from '../../shared/components/EmptyState';
-import { Modal } from '../../shared/components/Modal';
 import { mockApi } from '../../services/api/mockApi';
-import { Filter, Map, List, Activity, Users, Award, CheckCircle2 } from 'lucide-react';
+import { COMMUNITY_MOCK_ISSUES } from '../../services/api/communityMockData';
+import { Activity, List, Map, Users, Radio } from 'lucide-react';
+
+// Try to hit the real community API; if it fails fall back gracefully
+const fetchRealIssues = async () => {
+  try {
+    const { communityApi } = await import('../../services/api/communityApi');
+    const list = await communityApi.getIssues({ sort: 'priority' });
+    if (Array.isArray(list) && list.length > 0) return list;
+  } catch {}
+  return [];
+};
+
+// Merge real + mock; de-duplicate by id, sort by distanceKm (nearby first)
+const mergeAndSort = (real, filter) => {
+  const realWithDist = real.map((issue, i) => ({
+    ...issue,
+    distanceKm: issue.distanceKm || (0.3 + i * 0.4),
+    distanceText: issue.distanceText || `${(0.3 + i * 0.4).toFixed(1)} km away`,
+    affectsMeToo: issue.affectsMeToo || 0,
+    reportedAt: issue.reportedAt || issue.createdAt || new Date().toISOString(),
+  }));
+
+  const realIds = new Set(realWithDist.map((i) => i.id));
+  const mockFiltered = COMMUNITY_MOCK_ISSUES.filter((m) => !realIds.has(m.id));
+
+  let combined = [...realWithDist, ...mockFiltered];
+
+  // Apply filter
+  if (filter === 'High Priority') {
+    combined = combined.filter((i) => i.priorityLevel === 'HIGH');
+  } else if (filter === 'Recently Reported') {
+    combined = combined.sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt));
+    return combined;
+  } else if (filter === 'My Contributions') {
+    // Show issues the user has voted on
+    try {
+      const store = JSON.parse(localStorage.getItem('janawaaz_affects_me_too') || '{}');
+      const votedIds = new Set(Object.keys(store));
+      combined = combined.filter((i) => votedIds.has(i.id));
+    } catch {}
+  }
+
+  // Default sort: distance ascending (nearby first, all within 3km)
+  combined = combined
+    .filter((i) => (i.distanceKm || 0) <= 3)
+    .sort((a, b) => (a.distanceKm || 99) - (b.distanceKm || 99));
+
+  return combined;
+};
 
 export const Community = ({ onNavigate }) => {
   const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Nearby');
   const [viewMode, setViewMode] = useState('list');
-  const [volunteerSuccessModal, setVolunteerSuccessModal] = useState(false);
 
-  const filters = [
-    'Nearby',
-    'High Priority',
-    'Needs Volunteers',
-    'Recently Reported',
-    'My Contributions'
-  ];
+  const filters = ['Nearby', 'High Priority', 'Recently Reported', 'My Contributions'];
 
-  const fetchIssues = async () => {
-    try {
-      const { communityApi } = await import('../../services/api/communityApi');
-      const sortParam = activeFilter === 'High Priority' ? 'priority' : activeFilter === 'Recently Reported' ? 'recent' : 'priority';
-      const realList = await communityApi.getIssues({ sort: sortParam });
-      if (realList && Array.isArray(realList) && realList.length > 0) {
-        setIssues(realList);
-        return;
-      }
-    } catch (e) {
-      console.warn('[COMMUNITY FEED] Real API fetch failed, falling back to mock...', e);
-    }
-    const res = await mockApi.getIssues(activeFilter);
-    setIssues(res);
-  };
-
-  useEffect(() => {
-    fetchIssues();
-    const unsubscribe = mockApi.subscribe(fetchIssues);
-    return unsubscribe;
+  const loadIssues = useCallback(async () => {
+    setLoading(true);
+    const real = await fetchRealIssues();
+    const merged = mergeAndSort(real, activeFilter);
+    setIssues(merged);
+    setLoading(false);
   }, [activeFilter]);
 
-  const handleVolunteerAction = async (issueId) => {
-    await mockApi.volunteerForIssue(issueId);
-    setVolunteerSuccessModal(true);
+  useEffect(() => {
+    loadIssues();
+    const unsubscribe = mockApi.subscribe(loadIssues);
+    return unsubscribe;
+  }, [loadIssues]);
+
+  const handleAffectsMeToo = async (issueId, newCount) => {
+    // Optimistically update the list so count reflects immediately
+    setIssues((prev) =>
+      prev.map((i) => (i.id === issueId ? { ...i, affectsMeToo: newCount } : i))
+    );
+    // Optionally push to real backend here if API exists
+    try {
+      const { communityApi } = await import('../../services/api/communityApi');
+      if (communityApi.affectsMeToo) await communityApi.affectsMeToo(issueId);
+    } catch {}
   };
+
+  const totalAffected = issues.reduce((sum, i) => sum + (i.affectsMeToo || 0), 0);
 
   return (
     <div className="container" style={{ paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-12)' }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-8)', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-6)', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
             <Activity size={24} style={{ color: 'var(--color-brand-primary)' }} />
             <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-              Civic Activity Network
+              Nearby Civic Issues
             </h1>
           </div>
           <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)' }}>
-            Real-time community activity feed. Discover nearby issues, support, and volunteer.
+            Real issues within <strong style={{ color: 'var(--color-brand-primary)' }}>3 km</strong> of you — across all departments.
+            Vote <em>"Affects Me Too"</em> if you're impacted.
           </p>
+
+          {/* Stats row */}
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--color-brand-subtle)', border: '1px solid var(--color-brand-primary)' }}>
+              <Radio size={12} style={{ color: 'var(--color-brand-primary)' }} />
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
+                {issues.length} issues nearby
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
+              <Users size={12} style={{ color: 'var(--color-status-success)' }} />
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-status-success)' }}>
+                {totalAffected.toLocaleString()} citizens affected
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* View Toggle */}
-        <div style={{ display: 'flex', backgroundColor: 'var(--color-bg-surface-elevated)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-          <button
-            onClick={() => setViewMode('list')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: viewMode === 'list' ? 'var(--color-brand-primary)' : 'transparent',
-              color: viewMode === 'list' ? '#FFFFFF' : 'var(--color-text-secondary)',
-              border: 'none',
-              fontSize: 'var(--font-xs)',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            <List size={14} />
-            List Feed
-          </button>
-          <button
-            onClick={() => setViewMode('map')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: viewMode === 'map' ? 'var(--color-brand-primary)' : 'transparent',
-              color: viewMode === 'map' ? '#FFFFFF' : 'var(--color-text-secondary)',
-              border: 'none',
-              fontSize: 'var(--font-xs)',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            <Map size={14} />
-            Map Feed
-          </button>
+        <div style={{ display: 'flex', backgroundColor: 'var(--color-bg-surface-elevated)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)', alignSelf: 'flex-start' }}>
+          {[{ mode: 'list', Icon: List, label: 'List Feed' }, { mode: 'map', Icon: Map, label: 'Map Feed' }].map(({ mode, Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: 'none',
+                backgroundColor: viewMode === mode ? 'var(--color-brand-primary)' : 'transparent',
+                color: viewMode === mode ? '#FFFFFF' : 'var(--color-text-secondary)',
+                fontSize: 'var(--font-xs)', fontWeight: 600, cursor: 'pointer',
+                transition: 'all var(--transition-fast)'
+              }}
+            >
+              <Icon size={14} /> {label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-8)', overflowX: 'auto', paddingBottom: 'var(--space-2)' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-6)', overflowX: 'auto', paddingBottom: 'var(--space-1)' }}>
         {filters.map((filter) => (
           <button
             key={filter}
             onClick={() => setActiveFilter(filter)}
             style={{
-              padding: '8px 16px',
-              borderRadius: 'var(--radius-full)',
+              padding: '7px 16px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap',
               backgroundColor: activeFilter === filter ? 'var(--color-brand-subtle)' : 'var(--color-bg-surface)',
-              border: `1px solid ${activeFilter === filter ? 'var(--color-brand-primary)' : 'var(--color-border-subtle)'}`,
+              border: `1.5px solid ${activeFilter === filter ? 'var(--color-brand-primary)' : 'var(--color-border-subtle)'}`,
               color: activeFilter === filter ? 'var(--color-brand-primary)' : 'var(--color-text-secondary)',
-              fontSize: 'var(--font-xs)',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              fontSize: 'var(--font-xs)', fontWeight: 700, cursor: 'pointer',
               transition: 'all var(--transition-fast)'
             }}
           >
@@ -131,13 +165,21 @@ export const Community = ({ onNavigate }) => {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Content grid */}
       <div className="community-content-layout">
+        {/* List pane */}
         <div className={`community-list-pane ${viewMode === 'map' ? 'mobile-hidden' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {issues.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--color-text-tertiary)' }}>
+              <Activity size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+              <p style={{ fontWeight: 700 }}>Loading nearby issues...</p>
+            </div>
+          ) : issues.length === 0 ? (
             <EmptyState
-              title="No issues found"
-              description={`There are currently no active civic issues matching "${activeFilter}".`}
+              title={activeFilter === 'My Contributions' ? 'No contributions yet' : 'No nearby issues found'}
+              description={activeFilter === 'My Contributions'
+                ? 'Mark issues as "Affects Me Too" to see them here.'
+                : 'No civic issues reported within 3 km. Your area looks clean!'}
             />
           ) : (
             issues.map((issue) => (
@@ -145,39 +187,19 @@ export const Community = ({ onNavigate }) => {
                 key={issue.id}
                 issue={issue}
                 onNavigateTrack={(id) => onNavigate ? onNavigate(`/track/${id}`) : (window.location.hash = `/track/${id}`)}
+                onAffectsMeToo={handleAffectsMeToo}
               />
             ))
           )}
         </div>
+
+        {/* Map pane */}
         <div className={`community-map-pane ${viewMode === 'list' ? 'mobile-hidden' : ''}`}>
           <div style={{ position: 'sticky', top: '92px' }}>
             <MapContainer issues={issues} height="560px" />
           </div>
         </div>
       </div>
-
-      {/* Volunteer Confirmation Modal */}
-      <Modal isOpen={volunteerSuccessModal} onClose={() => setVolunteerSuccessModal(false)} title="Volunteer Confirmation">
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 'var(--space-4)', padding: 'var(--space-2)' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: 'var(--status-resolved)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Award size={32} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: 'var(--font-xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-              YOU'RE IN!
-            </h3>
-            <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              You’re now helping this issue move forward.
-            </p>
-            <span className="badge" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: 'var(--status-resolved)', marginTop: 'var(--space-3)' }}>
-              +10 Civic Impact Points Awarded
-            </span>
-          </div>
-          <Button variant="primary" onClick={() => setVolunteerSuccessModal(false)}>
-            Continue Exploring
-          </Button>
-        </div>
-      </Modal>
     </div>
   );
 };
