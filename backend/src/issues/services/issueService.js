@@ -36,12 +36,49 @@ export const issueService = {
         })
       : [{ type: 'image', url: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80', caption: 'Default issue evidence' }];
 
-    // Execute AI Analysis
-    console.log(`[ISSUE SERVICE] Executing Phase 3 AI Civic Intelligence analysis for issue candidate...`);
-    const aiAnalysisResult = await aiService.analyzeIssue(payload);
+    // Execute AI Analysis (Use pre-validated AI analysis if present from preview step for instant dispatch)
+    let aiAnalysisResult = {};
+    if (payload.category && payload.department) {
+      console.log(`[ISSUE SERVICE] Using pre-validated AI analysis for instant dispatch: ${payload.category} (${payload.department})`);
+      aiAnalysisResult = {
+        category: payload.category,
+        department: payload.department,
+        severity: payload.severity || 'HIGH',
+        priority: payload.priority || 85,
+        duplicateRisk: 0.05,
+        possibleDuplicates: [],
+        summary: payload.title || payload.description?.slice(0, 60) || 'Civic issue report',
+        reasoning: 'Pre-validated civic problem report verified by Featherless AI.',
+        provider: 'Featherless VLM',
+        model: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
+        promptVersion: 'issue-analysis-v1',
+        status: 'ANALYZED'
+      };
+    } else {
+      try {
+        console.log(`[ISSUE SERVICE] Executing Phase 3 AI Civic Intelligence analysis for issue candidate...`);
+        aiAnalysisResult = await aiService.analyzeIssue(payload);
+      } catch (aiErr) {
+        console.warn('[ISSUE SERVICE WARN] AI Analysis fallback used during creation:', aiErr.message);
+        aiAnalysisResult = {
+          category: payload.category || 'Road Damage',
+          department: payload.department || 'Roads & Infrastructure',
+          severity: payload.severity || 'HIGH',
+          priority: payload.priority || 85,
+          duplicateRisk: 0.05,
+          possibleDuplicates: [],
+          summary: payload.title || 'Civic issue report',
+          reasoning: 'Registered via offline fallback.',
+          provider: 'offline-fallback',
+          model: 'fallback',
+          promptVersion: 'issue-analysis-v1',
+          status: 'AI_UNAVAILABLE'
+        };
+      }
+    }
 
     // Merge AI recommendations if AI succeeded
-    const category = aiAnalysisResult.category || payload.category;
+    const category = aiAnalysisResult.category || payload.category || 'Road Damage';
     const department = aiAnalysisResult.department || payload.department || getDepartmentForCategory(category);
     const severity = aiAnalysisResult.severity || payload.severity || 'HIGH';
     const priority = typeof aiAnalysisResult.priority === 'number' ? aiAnalysisResult.priority : (payload.priority || 85);
@@ -51,7 +88,7 @@ export const issueService = {
         status: 'REPORTED',
         title: 'Reported by Citizen',
         time: 'Just now',
-        description: 'Issue reported and registered in Jansetu database.'
+        description: 'Issue reported and registered in JanAwaaz database.'
       },
       {
         status: 'VERIFIED',

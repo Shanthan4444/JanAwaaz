@@ -1,14 +1,14 @@
 export const resolveImageUrl = (imgSrc, fallback = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80', issueId = null) => {
   // 1. Check local storage for stored photo for this specific issueId or latest issue photo!
   try {
-    const photoStore = JSON.parse(localStorage.getItem('jansetu_issue_photos') || '{}');
+    const photoStore = JSON.parse(localStorage.getItem('janawaaz_issue_photos') || '{}');
     if (issueId && photoStore[issueId]) {
       return photoStore[issueId];
     }
     if (photoStore['latest'] && (!imgSrc || (typeof imgSrc === 'string' && imgSrc.includes('unsplash')))) {
       return photoStore['latest'];
     }
-    const latest = localStorage.getItem('jansetu_latest_issue_photo');
+    const latest = localStorage.getItem('janawaaz_latest_issue_photo');
     if (latest && (!imgSrc || (typeof imgSrc === 'string' && imgSrc.includes('unsplash')))) {
       return latest;
     }
@@ -36,7 +36,7 @@ export const resolveImageUrl = (imgSrc, fallback = 'https://images.unsplash.com/
     if (backendOrigin) {
       backendOrigin = backendOrigin.trim().replace(/\/api\/?$/, '');
     } else if (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname.includes('vercel.app')) {
-      backendOrigin = 'https://jansetu-2ul5.onrender.com';
+      backendOrigin = 'https://janawaaz-2ul5.onrender.com';
     } else if (typeof window !== 'undefined' && window.location) {
       backendOrigin = `${window.location.protocol}//${window.location.hostname}:5001`;
     } else {

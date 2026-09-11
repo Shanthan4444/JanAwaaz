@@ -9,11 +9,10 @@ export const LanguageSelector = () => {
 
   const languages = [
     { code: 'en', label: 'English', badge: 'EN' },
-    { code: 'hi', label: 'हिन्दी', badge: 'हिन्दी (Hindi)' },
-    { code: 'ta', label: 'தமிழ்', badge: 'தமிழ் (Tamil)' },
     { code: 'te', label: 'తెలుగు', badge: 'తెలుగు (Telugu)' },
-    { code: 'kn', label: 'ಕನ್ನಡ', badge: 'ಕನ್ನಡ (Kannada)' }
+    { code: 'hi', label: 'हिन्दी', badge: 'हिन्दी (Hindi)' }
   ];
+
 
   const activeLangObj = languages.find((l) => l.code === currentLang) || languages[0];
 

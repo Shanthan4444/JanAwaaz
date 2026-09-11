@@ -1,4 +1,4 @@
-// Speech Recognition Abstraction Service for JanSetu Multilingual Voice-First Reporting
+// Speech Recognition Abstraction Service for JanAwaaz Multilingual Voice-First Reporting
 
 export const getSpeechLangCode = (shortLang = 'en') => {
   if (!shortLang) return 'en-IN';

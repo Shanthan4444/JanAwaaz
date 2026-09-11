@@ -96,7 +96,7 @@ export const slaEngineService = {
         message: `SLA breached by ${originalWorker.name}. Escalated to ${backupWorker.name} with ₹150 incentive.`,
         actorId: 'system-sla-engine',
         actorRole: 'SYSTEM',
-        actorName: 'JanSetu SLA Engine'
+        actorName: 'JanAwaaz SLA Engine'
       });
 
       eventService.emit('SLA_BREACHED', {

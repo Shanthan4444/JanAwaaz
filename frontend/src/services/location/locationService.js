@@ -1,4 +1,4 @@
-// Automatic Location Service for JanSetu Citizen Reporting
+// Automatic Location Service for JanAwaaz Citizen Reporting
 export const locationService = {
   getCurrentLocation: async () => {
     return new Promise((resolve, reject) => {

@@ -16,7 +16,7 @@ async function runTest() {
   console.log('🧪 JANSETU ISSUE PERSISTENCE & LOCAL PHOTOS SUITE TEST');
   console.log('======================================================\n');
 
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jansetu';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/janawaaz';
   
   try {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });

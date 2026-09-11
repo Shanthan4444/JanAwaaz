@@ -36,7 +36,7 @@ export const departmentController = {
         return errorResponse(res, 'Invalid department admin credentials.', 'AUTH_FAILED', 401);
       }
 
-      const secret = process.env.JWT_SECRET || 'jansetu_jwt_secret_dev_key';
+      const secret = process.env.JWT_SECRET || 'janawaaz_jwt_secret_dev_key';
       const token = jwt.sign(
         {
           id: `dept-${found.username}`,

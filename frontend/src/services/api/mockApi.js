@@ -80,7 +80,7 @@ export const mockApi = {
         volunteers: 0,
         createdAt: new Date().toISOString(),
         timeline: [
-          { status: 'REPORTED', title: 'Reported by Citizen', time: 'Just now', description: 'Submitted via Jansetu report wizard.' }
+          { status: 'REPORTED', title: 'Reported by Citizen', time: 'Just now', description: 'Submitted via JanAwaaz report wizard.' }
         ]
       };
       issuesStore = [newIssue, ...issuesStore];

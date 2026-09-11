@@ -133,9 +133,9 @@ export const Navbar = ({ currentPath, onNavigate }) => {
 
         {/* Right Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-          <ThemeToggle />
           <LanguageSelector />
           <NotificationBell onNavigate={onNavigate} />
+
 
           {/* User Account / Sign In State */}
           {isAuthenticated ? (

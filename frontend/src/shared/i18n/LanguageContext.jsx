@@ -5,13 +5,13 @@ const LanguageContext = createContext(null);
 
 export const LanguageProvider = ({ children }) => {
   const [currentLang, setCurrentLang] = useState(() => {
-    return localStorage.getItem('jansetu_lang') || 'en';
+    return localStorage.getItem('janawaaz_lang') || 'en';
   });
 
   const setLanguage = (langCode) => {
     if (TRANSLATIONS[langCode]) {
       setCurrentLang(langCode);
-      localStorage.setItem('jansetu_lang', langCode);
+      localStorage.setItem('janawaaz_lang', langCode);
     }
   };
 

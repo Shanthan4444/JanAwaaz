@@ -47,7 +47,7 @@ export const AIAnalysisPreview = ({
         </div>
         <div>
           <h4 style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-            {!isComplete ? 'UNDERSTANDING YOUR REPORT...' : 'Jansetu AI Analysis Complete'}
+            {!isComplete ? 'UNDERSTANDING YOUR REPORT...' : 'JanAwaaz AI Analysis Complete'}
           </h4>
           <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
             Featherless AI Civic Intelligence Diagnostic Output

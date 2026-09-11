@@ -57,7 +57,7 @@ export const authController = {
         }
       }
 
-      const secret = process.env.JWT_SECRET || 'jansetu_super_secret_jwt_key_2026';
+      const secret = process.env.JWT_SECRET || 'janawaaz_super_secret_jwt_key_2026';
       const token = jwt.sign(
         {
           id: user._id.toString(),
@@ -132,7 +132,7 @@ export const authController = {
           const passwordHash = await bcrypt.hash(password.trim(), 10);
           const newUser = await User.create({
             name: workerDoc.name,
-            email: `${(workerDoc.employeeId || 'emp').toLowerCase()}@jansetu.local`,
+            email: `${(workerDoc.employeeId || 'emp').toLowerCase()}@janawaaz.local`,
             employeeId: workerDoc.employeeId || `EMP-${Math.floor(100 + Math.random() * 900)}`,
             passwordHash,
             role: 'WORKER',
@@ -169,7 +169,7 @@ export const authController = {
 
       const user = authenticatedUser;
 
-      const secret = process.env.JWT_SECRET || 'jansetu_super_secret_jwt_key_2026';
+      const secret = process.env.JWT_SECRET || 'janawaaz_super_secret_jwt_key_2026';
       const token = jwt.sign(
         {
           id: user._id.toString(),
@@ -218,7 +218,7 @@ export const authController = {
           { mobile: cleanMobile },
           { mobile: `+91${cleanMobile}` },
           { email: `citizen_${cleanMobile.slice(-4)}@janawaaz.local` },
-          { email: `citizen_${cleanMobile.slice(-4)}@jansetu.local` }
+          { email: `citizen_${cleanMobile.slice(-4)}@janawaaz.local` }
         ]
       });
 
@@ -386,7 +386,7 @@ export const authController = {
         $or: [
           { mobile: cleanMobile, role: 'CITIZEN' },
           { mobile: cleanMobile },
-          { email: `citizen_${cleanMobile.slice(-4)}@jansetu.local` }
+          { email: `citizen_${cleanMobile.slice(-4)}@janawaaz.local` }
         ]
       });
 
@@ -395,7 +395,7 @@ export const authController = {
         user = await User.create({
           name: `Citizen (${cleanMobile.slice(-4)})`,
           mobile: cleanMobile,
-          email: `citizen_${cleanMobile.slice(-4)}@jansetu.local`,
+          email: `citizen_${cleanMobile.slice(-4)}@janawaaz.local`,
           passwordHash: dummyPassword,
           role: 'CITIZEN',
           isActive: true
@@ -405,7 +405,7 @@ export const authController = {
         await user.save();
       }
 
-      const secret = process.env.JWT_SECRET || 'jansetu_super_secret_jwt_key_2026';
+      const secret = process.env.JWT_SECRET || 'janawaaz_super_secret_jwt_key_2026';
       const token = jwt.sign(
         {
           id: user._id.toString(),

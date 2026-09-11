@@ -2,10 +2,10 @@ import React from 'react';
 import { XCircle, CheckCircle2, ArrowDown, Sparkles } from 'lucide-react';
 import { useTranslation } from '../../shared/i18n/LanguageContext';
 
-export const BeforeWithJansetu = () => {
+export const BeforeWithJanAwaaz = () => {
   const { t } = useTranslation();
 
-  const withoutJansetu = [
+  const withoutJanAwaaz = [
     t('w1'),
     t('w2'),
     t('w3'),
@@ -13,7 +13,7 @@ export const BeforeWithJansetu = () => {
     t('w5')
   ];
 
-  const withJansetu = [
+  const withJanAwaaz = [
     t('j1'),
     t('j2'),
     t('j3'),
@@ -23,7 +23,7 @@ export const BeforeWithJansetu = () => {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-6)' }}>
-      {/* Without Jansetu */}
+      {/* Without JanAwaaz */}
       <div
         style={{
           backgroundColor: 'var(--color-bg-surface)',
@@ -35,17 +35,17 @@ export const BeforeWithJansetu = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)', color: 'var(--status-reopened)' }}>
           <XCircle size={20} />
-          <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 800 }}>{t('withoutJansetu')}</h3>
+          <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 800 }}>{t('withoutJanAwaaz')}</h3>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {withoutJansetu.map((step, idx) => (
+          {withoutJanAwaaz.map((step, idx) => (
             <React.Fragment key={idx}>
               <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-app)', border: '1px solid var(--color-border-subtle)', fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--color-text-tertiary)' }}>{idx + 1}.</span>
                 <span>{step}</span>
               </div>
-              {idx < withoutJansetu.length - 1 && (
+              {idx < withoutJanAwaaz.length - 1 && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', margin: '-4px 0' }}>
                   ↓
                 </div>
@@ -55,7 +55,7 @@ export const BeforeWithJansetu = () => {
         </div>
       </div>
 
-      {/* With Jansetu */}
+      {/* With JanAwaaz */}
       <div
         style={{
           backgroundColor: 'var(--color-bg-surface-elevated)',
@@ -68,20 +68,20 @@ export const BeforeWithJansetu = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)', color: 'var(--status-resolved)' }}>
           <CheckCircle2 size={20} />
-          <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)' }}>{t('withJansetu')}</h3>
+          <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)' }}>{t('withJanAwaaz')}</h3>
           <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)', marginLeft: 'auto' }}>
             <Sparkles size={12} /> {t('activeNetwork')}
           </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {withJansetu.map((step, idx) => (
+          {withJanAwaaz.map((step, idx) => (
             <React.Fragment key={idx}>
               <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-brand-border)', fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontWeight: 800, color: 'var(--color-brand-primary)' }}>{idx + 1}.</span>
                 <span>{step}</span>
               </div>
-              {idx < withJansetu.length - 1 && (
+              {idx < withJanAwaaz.length - 1 && (
                 <div style={{ textAlign: 'center', color: 'var(--color-brand-primary)', margin: '-4px 0' }}>
                   ↓
                 </div>

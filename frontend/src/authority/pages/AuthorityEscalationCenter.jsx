@@ -69,7 +69,7 @@ export const AuthorityEscalationCenter = ({ onNavigate }) => {
         reason: 'Technician Ramesh Kumar ignored assigned task for 3 consecutive days without starting work.'
       },
       failureReason: 'TECHNICIAN INACTION (3 DAYS UNATTENDED): Field Worker Ramesh Kumar (EMP-ROA-104) failed to visit site or acknowledge task within 72 hours SLA window.',
-      systemActionTaken: 'JanSetu Auto-Escalation Daemon stripped task assignment, issued negative reliability penalty (-15 pts), auto-reassigned to Senior Technician Suresh V., and attached +₹250 Emergency SLA Bonus.'
+      systemActionTaken: 'JanAwaaz Auto-Escalation Daemon stripped task assignment, issued negative reliability penalty (-15 pts), auto-reassigned to Senior Technician Suresh V., and attached +₹250 Emergency SLA Bonus.'
     },
     {
       issueId: 'JAN-AUG-2026-8815',

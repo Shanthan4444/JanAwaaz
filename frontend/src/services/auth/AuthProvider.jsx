@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    const currentRole = user?.role || localStorage.getItem('janawaaz_role') || localStorage.getItem('jansetu_role');
+    const currentRole = user?.role || localStorage.getItem('janawaaz_role') || localStorage.getItem('janawaaz_role');
     await authApi.logout();
     setUser(null);
     if (currentRole === 'WORKER') {
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const role = user?.role || localStorage.getItem('janawaaz_role') || localStorage.getItem('jansetu_role') || 'CITIZEN';
+  const role = user?.role || localStorage.getItem('janawaaz_role') || localStorage.getItem('janawaaz_role') || 'CITIZEN';
 
   const loginWithToken = (token, userData) => {
     if (token) localStorage.setItem('janawaaz_token', token);

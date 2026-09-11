@@ -209,7 +209,7 @@ export const authorityService = {
     const deptPrefix = targetDept.slice(0, 3).toUpperCase();
     const randomCode = Math.floor(100 + Math.random() * 900);
     const employeeId = `EMP-${deptPrefix}-${randomCode}`;
-    const email = `${employeeId.toLowerCase()}@jansetu.local`;
+    const email = `${employeeId.toLowerCase()}@janawaaz.local`;
 
     const bcryptModule = await import('bcryptjs');
     const bcrypt = bcryptModule.default || bcryptModule;

@@ -5,7 +5,7 @@ import { Button } from '../../shared/components/Button';
 import { MetricCard } from '../../shared/components/MetricCard';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { LifecycleHeroVisual } from '../components/LifecycleHeroVisual';
-import { BeforeWithJansetu } from '../components/BeforeWithJansetu';
+import { BeforeWithJanAwaaz } from '../components/BeforeWithJanAwaaz';
 import { mockApi } from '../../services/api/mockApi';
 import { useTranslation } from '../../shared/i18n/LanguageContext';
 import { resolveImageUrl, isRealUserPhoto } from '../../shared/utils/imageUtils';
@@ -374,13 +374,13 @@ export const Home = ({ onNavigate }) => {
             {t('systemTransformation')}
           </span>
           <h2 style={{ fontSize: 'var(--font-3xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-            {t('whyJansetuWorks')}
+            {t('whyJanAwaazWorks')}
           </h2>
         </div>
-        <BeforeWithJansetu />
+        <BeforeWithJanAwaaz />
       </section>
 
-      {/* How Jansetu Works: Storytelling 6 Steps */}
+      {/* How JanAwaaz Works: Storytelling 6 Steps */}
       <section className="container">
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-12)' }}>
           <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)', border: '1px solid var(--color-brand-border)', marginBottom: 'var(--space-2)' }}>

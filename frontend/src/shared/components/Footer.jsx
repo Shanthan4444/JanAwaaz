@@ -8,11 +8,11 @@ export const Footer = ({ onNavigate }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-sm)', background: 'var(--color-brand-primary)', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>J</div>
-              <span style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)' }}>Jansetu</span>
+              <div style={{ width: '32px', height: '28px', borderRadius: 'var(--radius-sm)', background: 'var(--color-brand-primary)', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px' }}>JA</div>
+              <span style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)' }}>JanAwaaz</span>
             </div>
             <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-              Turn civic problems into coordinated action and verified resolution. Jansetu connects citizens, volunteers, authorities, and field workers through AI civic intelligence.
+              Turn civic problems into coordinated action and verified resolution. JanAwaaz connects citizens, volunteers, authorities, and field workers through AI civic intelligence.
             </p>
           </div>
 
@@ -50,7 +50,7 @@ export const Footer = ({ onNavigate }) => {
 
         <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 'var(--space-6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)', fontSize: 'var(--font-xs)', color: 'var(--color-text-tertiary)' }}>
           <div>
-            © 2026 Jansetu Platform Architecture. All Rights Reserved.
+            © 2026 JanAwaaz Platform Architecture. All Rights Reserved.
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span>Verified Civic Resolution Infrastructure</span>

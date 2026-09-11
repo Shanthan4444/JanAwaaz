@@ -4,7 +4,7 @@ const getApiBaseUrl = () => {
   // Auto-detect production Vercel hostname to guarantee connection to Render backend
   if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
     if (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname.includes('vercel.app')) {
-      envUrl = 'https://jansetu-2ul5.onrender.com/api';
+      envUrl = 'https://janawaaz-2ul5.onrender.com/api';
     } else {
       envUrl = 'http://localhost:5001/api';
     }
@@ -117,7 +117,7 @@ function getHeaders() {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
-  const token = localStorage.getItem('jansetu_token');
+  const token = localStorage.getItem('janawaaz_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -136,8 +136,8 @@ async function handleResponse(response) {
   }
 
   if (response.status === 401) {
-    localStorage.removeItem('jansetu_token');
-    localStorage.removeItem('jansetu_role');
+    localStorage.removeItem('janawaaz_token');
+    localStorage.removeItem('janawaaz_role');
   }
 
   if (!response.ok || json.success === false) {
@@ -153,7 +153,7 @@ async function handleResponse(response) {
 
 function normalizeError(error) {
   if (error.status !== undefined) return error;
-  const netErr = new Error('Network error: Unable to reach Jansetu API server. Please check your connection or server status.');
+  const netErr = new Error('Network error: Unable to reach JanAwaaz API server. Please check your connection or server status.');
   netErr.code = 'NETWORK_ERROR';
   netErr.status = 0;
   return netErr;

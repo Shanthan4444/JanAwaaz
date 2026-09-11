@@ -24,7 +24,6 @@ import {
   XCircle,
   ShieldAlert,
   Globe,
-  Play,
   Check
 } from 'lucide-react';
 import { Button } from '../../shared/components/Button';
@@ -45,16 +44,18 @@ export const ReportIssue = ({ onNavigate }) => {
   const { t, currentLang } = useTranslation();
   const { user, isAuthenticated, login, loginWithToken } = useAuth();
 
-  // Navigation Steps:
-  // Step 1: Step-by-Step Guided Report Flow (Voice -> AI Validation -> Photo -> Location)
-  // Step 2: Speech Listening State
-  // Step 3: AI Diagnostic Scanning
-  // Step 4: AI Results & Final Review (What AI Understood)
-  // Step 5: Citizen Mobile OTP Login (if not authenticated)
-  // Step 6: Enter OTP
-  // Step 7: New User Name Entry
-  // Step 8: Success Receipt (Persisted in MongoDB)
-  const [step, setStep] = useState(1);
+  // Internal Step Flow:
+  // activeStep = 1: Step 1 Voice Description Input & AI Validation
+  // activeStep = 2: Active Voice Recording Screen
+  // activeStep = 3: Step 2 Photo Evidence (Min 1, Max 4 photos with explicit submit option)
+  // activeStep = 4: Step 3 Location Details & GPS Map Selection
+  // activeStep = 5: AI Diagnostic Calculations Scanning Screen
+  // activeStep = 6: Final AI Calculations & Review Screen
+  // activeStep = 7: Mandatory Mobile OTP Request Screen (if citizen not logged in)
+  // activeStep = 8: Mobile OTP Code Verification Screen
+  // activeStep = 9: New Citizen Name Entry Screen
+  // activeStep = 10: Final Success Receipt Screen
+  const [activeStep, setActiveStep] = useState(1);
 
   // Draft Data State
   const [images, setImages] = useState([]);
@@ -64,7 +65,7 @@ export const ReportIssue = ({ onNavigate }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState(null);
 
-  // Voice AI Validation State (Strict Step 1 -> Step 2 Gate)
+  // Voice AI Validation State (Step 1 Gate)
   const [selectedVoiceLang, setSelectedVoiceLang] = useState(currentLang || 'en');
   const [isValidatingVoice, setIsValidatingVoice] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -80,7 +81,7 @@ export const ReportIssue = ({ onNavigate }) => {
     aiConnected: false
   });
 
-  // Photo AI Validation State (Strict Step 2 -> Step 3 Gate)
+  // Photo AI Validation State (Step 2 Gate)
   const [isValidatingPhoto, setIsValidatingPhoto] = useState(false);
   const [photoValidation, setPhotoValidation] = useState({
     status: 'IDLE', // IDLE | VALID | MISMATCH | POOR_QUALITY | API_ERROR
@@ -113,7 +114,6 @@ export const ReportIssue = ({ onNavigate }) => {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState(null);
-  const [serverHint, setServerHint] = useState(null);
 
   // New User Name State
   const [fullName, setFullName] = useState('');
@@ -123,35 +123,37 @@ export const ReportIssue = ({ onNavigate }) => {
   const [submissionError, setSubmissionError] = useState(null);
   const [createdIssueId, setCreatedIssueId] = useState(null);
 
-  // Sync selected voice language with app translation language
+  // Sync selected voice language with app translation language (limited strictly to en, te, hi)
   useEffect(() => {
-    if (currentLang) setSelectedVoiceLang(currentLang);
+    if (currentLang && ['en', 'te', 'hi'].includes(currentLang)) {
+      setSelectedVoiceLang(currentLang);
+    }
   }, [currentLang]);
 
-  // Trigger AI Vision & Location Processing when entering Step 3
+  // Trigger AI Vision & Location Processing when entering Step 5
   useEffect(() => {
-    if (step === 3) {
+    if (activeStep === 5) {
       processAiAndLocation();
     }
-  }, [step]);
+  }, [activeStep]);
 
   // Confetti trigger on success screen
   useEffect(() => {
-    if (step === 8) {
+    if (activeStep === 10) {
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 }
       });
     }
-  }, [step]);
+  }, [activeStep]);
 
   // Handle Speech Recording Start
   const handleStartRecording = () => {
     setRecordingError(null);
     setIsRecording(true);
     setInterimText('');
-    setStep(2);
+    setActiveStep(2);
 
     const started = speechService.startListening({
       lang: selectedVoiceLang || 'en',
@@ -161,22 +163,20 @@ export const ReportIssue = ({ onNavigate }) => {
       },
       onError: (err) => {
         console.warn('[SPEECH RECORDING WARN]', err);
-        setRecordingError(err.message || 'Speech recognition failed. Please allow microphone access or use keyboard.');
+        setRecordingError(err.message || 'Speech recognition failed. Please allow microphone access or type description.');
         setIsRecording(false);
       },
       onEnd: (finalText) => {
-        if (speechService.shouldBeListening) {
-          return; // Still in continuous listening loop
-        }
+        if (speechService.shouldBeListening) return;
         setIsRecording(false);
         setInterimText('');
         const textToValidate = (finalText || voiceText || '').trim();
         if (textToValidate) {
           setVoiceText(textToValidate);
-          setStep(1);
+          setActiveStep(1);
           handleValidateVoice(textToValidate);
         } else {
-          setStep(1);
+          setActiveStep(1);
         }
       }
     });
@@ -184,7 +184,7 @@ export const ReportIssue = ({ onNavigate }) => {
     if (!started) {
       setIsRecording(false);
       setUseTextInput(true);
-      setStep(1);
+      setActiveStep(1);
     }
   };
 
@@ -197,7 +197,7 @@ export const ReportIssue = ({ onNavigate }) => {
     }
     setIsRecording(false);
     setInterimText('');
-    setStep(1); // Return to Step 1 Guided Screen
+    setActiveStep(1);
 
     if (finalSpeechText) {
       handleValidateVoice(finalSpeechText);
@@ -229,7 +229,7 @@ export const ReportIssue = ({ onNavigate }) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(voiceText);
-      utterance.lang = 'en-IN';
+      utterance.lang = selectedVoiceLang === 'te' ? 'te-IN' : selectedVoiceLang === 'hi' ? 'hi-IN' : 'en-IN';
       utterance.onstart = () => setIsPlayingAudio(true);
       utterance.onend = () => setIsPlayingAudio(false);
       utterance.onerror = () => setIsPlayingAudio(false);
@@ -237,14 +237,14 @@ export const ReportIssue = ({ onNavigate }) => {
     }
   };
 
-  // AI Voice Validation Engine (Strict Featherless AI Integration - NO MOCK/KEYWORD FALLBACKS)
+  // AI Voice Validation Engine
   const handleValidateVoice = async (overrideText) => {
     const textToValidate = (overrideText !== undefined ? overrideText : voiceText).trim();
     if (!textToValidate) {
       setVoiceValidation({
         status: 'EMPTY',
         isValidated: false,
-        message: 'Please tell us about the civic problem using your voice or keyboard.',
+        message: t('describeSub'),
         transcription: '',
         category: '',
         confidence: null,
@@ -266,15 +266,27 @@ export const ReportIssue = ({ onNavigate }) => {
       const confidence = typeof valRes.confidence === 'number' ? valRes.confidence : 0;
       const aiConnected = valRes.aiConnected ?? true;
 
-      if (valRes.validationStatus === 'VALID' && aiConnected && confidence >= 0.80) {
+      if (valRes.validationStatus === 'API_ERROR' || !aiConnected) {
+        setVoiceValidation({
+          status: 'API_ERROR',
+          isValidated: false,
+          message: selectedVoiceLang === 'te' ? 'AI ధృవీకరణ ప్రస్తుతం అందుబాటులో లేదు. దయచేసి మళ్లీ ప్రయత్నించండి.' : selectedVoiceLang === 'hi' ? 'AI सत्यापन वर्तमान में उपलब्ध नहीं है। कृपया पुनः प्रयास करें।' : 'AI validation is currently unavailable. Please try again.',
+          transcription: textToValidate,
+          category: '',
+          confidence: 0,
+          issueSummary: null,
+          reason: valRes.reason || 'AI API unavailable',
+          aiConnected: false
+        });
+      } else if (valRes.validationStatus === 'VALID' && aiConnected && confidence >= 0.80) {
         setVoiceValidation({
           status: 'VALID',
           isValidated: true,
-          message: valRes.response_to_user || valRes.responseToUser || '✓ Civic issue identified',
+          message: valRes.response_to_user || valRes.responseToUser || (selectedVoiceLang === 'te' ? '✓ సమస్య గుర్తించబడింది' : '✓ Civic issue identified'),
           transcription: textToValidate,
           category: valRes.category || 'Civic Issue',
           confidence,
-          issueSummary: valRes.issue_summary || valRes.issueSummary,
+          issueSummary: valRes.issue_summary || valRes.issueSummary || textToValidate,
           reason: valRes.reason || '',
           aiConnected: true
         });
@@ -282,7 +294,7 @@ export const ReportIssue = ({ onNavigate }) => {
         setVoiceValidation({
           status: 'PERSONAL_INFO',
           isValidated: false,
-          message: valRes.response_to_user || valRes.responseToUser || 'Please avoid sharing personal details such as your name, phone number, college information, or private information. Please describe only the public/civic problem you want to report.',
+          message: valRes.response_to_user || valRes.responseToUser || (selectedVoiceLang === 'te' ? 'దయచేసి మీ పేరు లేదా వ్యక్తిగత వివరాలను భాగస్వామ్యం చేయవద్దు. కేవలం నగర సమస్య గురించి మాత్రమే చెప్పండి.' : 'Please describe only the public civic problem. Avoid sharing personal information.'),
           transcription: textToValidate,
           category: '',
           confidence,
@@ -294,7 +306,7 @@ export const ReportIssue = ({ onNavigate }) => {
         setVoiceValidation({
           status: 'NON_CIVIC',
           isValidated: false,
-          message: valRes.response_to_user || valRes.responseToUser || 'Please describe a relevant civic issue such as a pothole, garbage problem, drainage issue, broken streetlight, or damaged public infrastructure.',
+          message: valRes.response_to_user || valRes.responseToUser || (selectedVoiceLang === 'te' ? 'దయచేసి గుంతలు, చెత్త పేరుకుపోవడం, నీటి లీకేజీ, వీధి దీపాలు లేదా అగ్ని ప్రమాదాల వంటి చెల్లుబాటు అయ్యే నగర సమస్యను వివరింఛండి.' : 'Please describe a valid civic issue such as potholes, garbage overflow, water leakage, broken streetlights, or fire hazards.'),
           transcription: textToValidate,
           category: '',
           confidence,
@@ -302,24 +314,11 @@ export const ReportIssue = ({ onNavigate }) => {
           reason: valRes.reason || '',
           aiConnected: true
         });
-      } else if (valRes.validationStatus === 'API_ERROR' || !aiConnected) {
-        setVoiceValidation({
-          status: 'API_ERROR',
-          isValidated: false,
-          message: 'AI validation is currently unavailable. Please try again.',
-          transcription: textToValidate,
-          category: '',
-          confidence: 0,
-          issueSummary: null,
-          reason: valRes.reason || 'AI API unavailable',
-          aiConnected: false
-        });
       } else {
-        // UNCLEAR (CASE B)
         setVoiceValidation({
           status: 'UNCLEAR',
           isValidated: false,
-          message: valRes.response_to_user || valRes.responseToUser || 'Please describe what the problem is and where it is located.',
+          message: valRes.response_to_user || valRes.responseToUser || (selectedVoiceLang === 'te' ? 'దయచేసి సమస్య ఏంటి మరియు ఎక్కడ ఉందో స్పష్టంగా వివరించండి.' : 'Please describe what the problem is and where it is located.'),
           transcription: textToValidate,
           category: '',
           confidence,
@@ -330,11 +329,10 @@ export const ReportIssue = ({ onNavigate }) => {
       }
     } catch (err) {
       console.error('[VOICE VALIDATION API ERROR]', err);
-      // Strictly show AI unavailable message — NO FALSE POSITIVE FALLBACK!
       setVoiceValidation({
         status: 'API_ERROR',
         isValidated: false,
-        message: 'AI validation is currently unavailable. Please try again.',
+        message: selectedVoiceLang === 'te' ? 'AI ధృవీకరణ ప్రస్తుతం అందుబాటులో లేదు. దయచేసి మళ్లీ ప్రయత్నించండి.' : selectedVoiceLang === 'hi' ? 'AI सत्यापन वर्तमान में उपलब्ध नहीं है। कृपया पुनः प्रयास करें।' : 'AI validation is currently unavailable. Please try again.',
         transcription: textToValidate,
         category: '',
         confidence: 0,
@@ -347,13 +345,9 @@ export const ReportIssue = ({ onNavigate }) => {
     }
   };
 
-  // AI Multimodal Photo Validation Engine (Handles Matching, Mismatch, Quality, API Failure)
+  // AI Multimodal Photo Validation Engine
   const handleValidatePhoto = async (imageSrc) => {
     if (!imageSrc) return;
-
-    try {
-      localStorage.setItem('jansetu_latest_issue_photo', imageSrc);
-    } catch (e) {}
 
     setIsValidatingPhoto(true);
     try {
@@ -364,7 +358,6 @@ export const ReportIssue = ({ onNavigate }) => {
         image: imageSrc
       };
 
-      console.log('[PHOTO VALIDATION] Requesting Featherless VLM analysis for uploaded image...');
       const res = await issuesApi.validatePhoto(payload);
       const valRes = res?.data || res || {};
 
@@ -380,16 +373,16 @@ export const ReportIssue = ({ onNavigate }) => {
           isValidated: true,
           message: valRes.user_message || valRes.userMessage || '✓ Photo Evidence Verified',
           detectedVisualIssue: valRes.detected_visual_issue || valRes.detectedVisualIssue || 'Matching visual evidence confirmed',
-          reason: valRes.reason || 'The uploaded photograph clearly supports the reported civic issue.',
+          reason: valRes.reason || 'The uploaded photograph supports the reported civic issue.',
           aiConnected: true
         });
       } else if (valRes.validationStatus === 'POOR_QUALITY' || qualitySuff === false) {
         setPhotoValidation({
           status: 'POOR_QUALITY',
           isValidated: false,
-          message: valRes.user_message || valRes.userMessage || 'The photo is too unclear, dark, or blurry to verify the reported issue. Please upload a clearer photo.',
+          message: valRes.user_message || valRes.userMessage || 'The photo is too unclear or blurry to verify the reported issue. Please upload a clearer photo.',
           detectedVisualIssue: null,
-          reason: valRes.reason || 'Image quality is insufficient to verify the reported issue.',
+          reason: valRes.reason || 'Image quality is insufficient to verify issue.',
           aiConnected: true
         });
       } else if (valRes.validationStatus === 'API_ERROR' || !aiConnected) {
@@ -402,13 +395,12 @@ export const ReportIssue = ({ onNavigate }) => {
           aiConnected: false
         });
       } else {
-        // MISMATCH (Wrong photo, non-civic photo, or different civic issue)
         setPhotoValidation({
           status: 'MISMATCH',
           isValidated: false,
-          message: valRes.user_message || valRes.userMessage || '⚠️ This photo does not appear to match the reported civic issue. Please upload a photo showing the issue.',
+          message: valRes.user_message || valRes.userMessage || 'This photo does not match the reported civic issue. Please upload a matching photo.',
           detectedVisualIssue: valRes.detected_visual_issue || valRes.detectedVisualIssue || 'Different scene detected',
-          reason: valRes.reason || 'The uploaded photograph does not match the specific civic issue described in Step 1.',
+          reason: valRes.reason || 'The uploaded photograph does not match the described civic issue.',
           aiConnected: true
         });
       }
@@ -427,7 +419,6 @@ export const ReportIssue = ({ onNavigate }) => {
     }
   };
 
-  // Reset Photo Validation
   const handleResetPhoto = () => {
     setImages([]);
     setPhotoValidation({
@@ -447,7 +438,6 @@ export const ReportIssue = ({ onNavigate }) => {
 
     const textToProcess = (overrideText !== undefined && overrideText !== null ? overrideText : voiceText).trim() || 'Civic problem requiring municipal attention.';
 
-    // 1. Resolve GPS Location
     try {
       const loc = await locationService.getCurrentLocation();
       setLocation(loc);
@@ -458,7 +448,6 @@ export const ReportIssue = ({ onNavigate }) => {
       setLocationLoading(false);
     }
 
-    // 2. Call AI Vision & Description Analysis API
     try {
       const payload = {
         title: textToProcess.slice(0, 60),
@@ -468,7 +457,7 @@ export const ReportIssue = ({ onNavigate }) => {
       };
       const res = await issuesApi.previewAnalyze(payload);
       setAiAnalysis(res);
-      setStep(4); // Move to Final AI Review Screen
+      setActiveStep(6);
     } catch (aiErr) {
       console.warn('[AI PROCESS NETWORK FALLBACK]', aiErr);
 
@@ -493,14 +482,6 @@ export const ReportIssue = ({ onNavigate }) => {
         fallbackDept = 'Electrical Department';
         fallbackSev = 'MEDIUM';
         fallbackPrio = 75;
-      } else if (validatedCategory === 'Road Damage' || validatedCategory === 'ROADS_INFRASTRUCTURE') {
-        fallbackDept = 'Roads & Infrastructure Department';
-        fallbackSev = 'HIGH';
-        fallbackPrio = 85;
-      } else if (validatedCategory === 'INVALID') {
-        fallbackDept = 'NOT ASSIGNED';
-        fallbackSev = 'N/A';
-        fallbackPrio = 0;
       }
 
       setAiAnalysis({
@@ -514,29 +495,25 @@ export const ReportIssue = ({ onNavigate }) => {
         severity: fallbackSev,
         priority: fallbackPrio,
         issueTitle: textToProcess.slice(0, 50) || `${validatedCategory} Report`,
-        summary: textToProcess.slice(0, 60) || `${validatedCategory} Complaint`,
+        summary: voiceValidation.issueSummary || textToProcess.slice(0, 60),
         description: textToProcess,
-        reasoning: validatedCategory === 'INVALID'
-          ? "This issue is currently outside JanAwaaz's supported civic services."
-          : 'Civic report registered using verified Featherless AI voice classification.',
-        photoDescription: 'Civic problem evidence confirmed from user camera capture.'
+        reasoning: 'Civic report registered using verified Featherless AI voice classification.',
+        photoDescription: 'Civic problem evidence confirmed from photo capture.'
       });
-      setStep(4);
+      setActiveStep(6);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Review Confirmed -> If authenticated, submit directly; otherwise, require mandatory OTP verification step before raising complaint
   const handleReviewConfirmed = async () => {
     if (isAuthenticated && user) {
       await finalizeIssueCreation(user);
     } else {
-      setStep(5); // Mandatory Mobile OTP Verification step for final issue submission
+      setActiveStep(7);
     }
   };
 
-  // Request Mobile OTP via Twilio
   const handleSendOtp = async () => {
     const cleanMobile = (mobileNumber || '').trim().replace(/\D/g, '').slice(-10);
     if (!cleanMobile || cleanMobile.length < 10) {
@@ -545,22 +522,19 @@ export const ReportIssue = ({ onNavigate }) => {
     }
     setOtpLoading(true);
     setOtpError(null);
-    setServerHint(null);
     try {
-      // Send OTP via Twilio SMS API
-      const res = await authApi.requestOtp(cleanMobile);
+      await authApi.requestOtp(cleanMobile);
       setOtpSent(true);
-      setStep(6); // Move to Step 6: Enter & Verify OTP!
+      setActiveStep(8);
     } catch (err) {
       console.warn('[OTP REQUEST ERROR]', err);
       setOtpError(err.message || 'Failed to send OTP code. Please check your mobile number and try again.');
-      setStep(6);
+      setActiveStep(8);
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // Verify OTP & Raise Complaint
   const handleVerifyOtp = async () => {
     const cleanMobile = (mobileNumber || '').trim().replace(/\D/g, '').slice(-10);
     if (!otpCode || otpCode.trim().length < 6) {
@@ -580,9 +554,9 @@ export const ReportIssue = ({ onNavigate }) => {
       }
 
       if (!authUser?.name || authUser.name.startsWith('Citizen (') || authUser.name === 'Citizen') {
-        setStep(7); // Prompt for Name before raising complaint
+        setActiveStep(9);
       } else {
-        await finalizeIssueCreation(authUser); // Raise complaint after successful OTP verification!
+        await finalizeIssueCreation(authUser);
       }
     } catch (err) {
       console.warn('[OTP VERIFY ERROR]', err);
@@ -592,15 +566,12 @@ export const ReportIssue = ({ onNavigate }) => {
     }
   };
 
-
-  // Save New User Name & Submit
   const handleNewUserSubmit = async () => {
     const nameToUse = fullName.trim() || 'Citizen';
     const updatedUser = { ...user, name: nameToUse, mobile: mobileNumber };
     await finalizeIssueCreation(updatedUser);
   };
 
-  // Finalize MongoDB Issue Creation
   const finalizeIssueCreation = async (reporterUser) => {
     setIsSubmitting(true);
     setSubmissionError(null);
@@ -633,39 +604,38 @@ export const ReportIssue = ({ onNavigate }) => {
       });
 
       setCreatedIssueId(created?.issueId || created?.id || created?._id || `JAN-SEP-2026-${Math.floor(1000 + Math.random() * 9000)}`);
-      setStep(8); // Success Screen
+      setActiveStep(10);
     } catch (err) {
       console.warn('[FINAL SUBMIT WARN] Using offline ticket generation:', err);
       const mockId = `JAN-SEP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
       setCreatedIssueId(mockId);
-      setStep(8);
+      setActiveStep(10);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-
-  // Helper for Language Label
-  const getLanguageName = (code) => {
-    switch (code) {
-      case 'ta': return 'Tamil (தமிழ்)';
-      case 'te': return 'Telugu (తెలుగు)';
-      case 'kn': return 'Kannada (ಕನ್ನಡ)';
-      case 'hi': return 'Hindi (हिन्दी)';
-      case 'mr': return 'Marathi (मराठी)';
-      case 'bn': return 'Bengali (বাংলা)';
-      case 'gu': return 'Gujarati (ગુજરાતી)';
-      case 'ml': return 'Malayalam (മലയാളം)';
-      default: return 'English';
+  // Helper for 1-line problem summary feedback
+  const getProblemIdentifiedText = () => {
+    let summary = voiceValidation.issueSummary || voiceValidation.transcription || voiceText || '';
+    // If Telugu/Hindi selected and AI summary contains English characters, use user's voice text
+    if ((selectedVoiceLang === 'te' || selectedVoiceLang === 'hi') && /[a-zA-Z]{3,}/.test(summary)) {
+      summary = voiceText || voiceValidation.transcription || summary;
     }
+    if (selectedVoiceLang === 'te') {
+      return `గుర్తించిన సమస్య: ${summary}. దయచేసి తెలిపిన సమస్యకు సంబంధించిన ఫోటో ఆధారాలను అప్‌లోడ్ చేయండి.`;
+    } else if (selectedVoiceLang === 'hi') {
+      return `पहचानी गई समस्या: ${summary}। कृपया दर्ज की गई समस्या से संबंधित फोटो साक्ष्य अपलोड करें।`;
+    }
+    return `Problem identified: ${summary}. Please upload photo evidence related to the reported issue.`;
   };
 
   // -------------------------------------------------------------
-  // RENDER FLOW STEPS (1 - 8)
+  // RENDER FLOW STEPS (1 - 10)
   // -------------------------------------------------------------
 
-  // SCREEN 8: SUCCESS RECEIPT
-  if (step === 8) {
+  // SCREEN 10: SUCCESS RECEIPT
+  if (activeStep === 10) {
     return (
       <div className="container animate-slide-up" style={{ maxWidth: '560px', paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-12)' }}>
         <div style={{
@@ -693,7 +663,7 @@ export const ReportIssue = ({ onNavigate }) => {
           </div>
 
           <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.02em', marginBottom: 'var(--space-2)' }}>
-            Your report is now helping improve the community
+            {selectedVoiceLang === 'te' ? 'మీ ఫిర్యాదు నమోదు చేయబడింది' : selectedVoiceLang === 'hi' ? 'आपकी शिकायत दर्ज कर ली गई है' : 'Your report is now helping improve the community'}
           </h2>
           <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: '0 auto var(--space-6)', maxWidth: '400px' }}>
             Thank you, <strong>{user?.name || fullName || 'Citizen'}</strong>. Your report is now filed and assigned to the municipal queue.
@@ -728,7 +698,7 @@ export const ReportIssue = ({ onNavigate }) => {
               onClick={() => onNavigate ? onNavigate(`/track/${createdIssueId}`) : (window.location.hash = `/track/${createdIssueId}`)}
               style={{ width: '100%' }}
             >
-              TRACK RESOLUTION PROGRESS
+              {t('trackResolution')}
             </Button>
             <Button
               variant="secondary"
@@ -736,7 +706,7 @@ export const ReportIssue = ({ onNavigate }) => {
               onClick={() => onNavigate ? onNavigate('/') : (window.location.hash = '/')}
               style={{ width: '100%' }}
             >
-              RETURN TO HOME
+              {t('returnToHome')}
             </Button>
           </div>
         </div>
@@ -744,8 +714,8 @@ export const ReportIssue = ({ onNavigate }) => {
     );
   }
 
-  // SCREEN 7: NEW USER NAME ENTRY
-  if (step === 7) {
+  // SCREEN 9: NEW USER NAME ENTRY
+  if (activeStep === 9) {
     return (
       <div className="container animate-slide-up" style={{ maxWidth: '440px', paddingTop: 'var(--space-12)', paddingBottom: 'var(--space-12)' }}>
         <div className="card-container" style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
@@ -763,7 +733,7 @@ export const ReportIssue = ({ onNavigate }) => {
             <UserCheck size={24} />
           </div>
           <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
-            Tell us your name
+            {t('tellUsYourName')}
           </h2>
           <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)', marginBottom: 'var(--space-6)' }}>
             We need a name to credit your account with civic engagement points.
@@ -784,21 +754,21 @@ export const ReportIssue = ({ onNavigate }) => {
             disabled={isSubmitting || !fullName.trim()}
             style={{ width: '100%' }}
           >
-            {isSubmitting ? 'SUBMITTING REPORT...' : 'SUBMIT REPORT'}
+            {isSubmitting ? t('submitting') : t('submitReport')}
           </Button>
         </div>
       </div>
     );
   }
 
-  // SCREEN 6: ENTER OTP
-  if (step === 6) {
+  // SCREEN 8: ENTER OTP
+  if (activeStep === 8) {
     return (
       <div className="container animate-slide-up" style={{ maxWidth: '440px', paddingTop: 'var(--space-12)', paddingBottom: 'var(--space-12)' }}>
         <div className="card-container" style={{ padding: 'var(--space-8)' }}>
           <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
             <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-              Security Verification
+              {t('enterOtp')}
             </h2>
             <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
               Enter the 6-digit OTP code sent to <strong>+91 {mobileNumber}</strong>
@@ -835,16 +805,15 @@ export const ReportIssue = ({ onNavigate }) => {
             disabled={otpLoading || otpCode.length < 6}
             style={{ width: '100%', marginBottom: 'var(--space-4)' }}
           >
-            {otpLoading ? 'VERIFYING CODE...' : 'VERIFY & SUBMIT'}
+            {otpLoading ? 'VERIFYING CODE...' : t('verifyAndSubmit')}
           </Button>
         </div>
       </div>
     );
   }
 
-
-  // SCREEN 5: MANDATORY CITIZEN LOGIN
-  if (step === 5) {
+  // SCREEN 7: MANDATORY CITIZEN LOGIN
+  if (activeStep === 7) {
     return (
       <div className="container animate-slide-up" style={{ maxWidth: '480px', paddingTop: 'var(--space-12)', paddingBottom: 'var(--space-12)' }}>
         <div className="card-container" style={{ padding: 'var(--space-8)' }}>
@@ -863,13 +832,13 @@ export const ReportIssue = ({ onNavigate }) => {
               <Phone size={24} />
             </div>
             <span style={{ fontSize: '11px', color: 'var(--color-brand-primary)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.08em' }}>
-              ONE QUICK VERIFICATION
+              SECURITY VERIFICATION
             </span>
             <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-              Verify Your Mobile Number
+              {t('verifyMobileNumber')}
             </h2>
             <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '6px', lineHeight: 1.5 }}>
-              Before submitting your civic issue, verify your mobile number to authorize submission to <strong>{aiAnalysis?.department || 'Department'}</strong>.
+              Before submitting your civic issue, verify your mobile number to authorize submission.
             </p>
           </div>
 
@@ -904,16 +873,15 @@ export const ReportIssue = ({ onNavigate }) => {
             disabled={otpLoading || mobileNumber.length < 10}
             style={{ width: '100%' }}
           >
-            {otpLoading ? 'SENDING OTP CODE...' : 'SEND OTP CODE & LOGIN ➔'}
+            {otpLoading ? 'SENDING OTP CODE...' : t('sendOtp')}
           </Button>
         </div>
       </div>
     );
   }
 
-  // SCREEN 4: AI CALCULATIONS & REVIEW SCREEN
-  if (step === 4) {
-    // INVALID ISSUE HANDLER: Outside Supported Civic Scope
+  // SCREEN 6: AI CALCULATIONS & REVIEW SCREEN
+  if (activeStep === 6) {
     if (aiAnalysis?.category === 'INVALID' || aiAnalysis?.valid === false || aiAnalysis?.isCivicIssue === false) {
       return (
         <div className="container animate-slide-up" style={{ maxWidth: '560px', paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-12)' }}>
@@ -951,31 +919,11 @@ export const ReportIssue = ({ onNavigate }) => {
               {aiAnalysis?.reasoning || "This complaint is currently outside JanAwaaz's supported civic services."}
             </p>
 
-            <div style={{
-              padding: 'var(--space-5)',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-bg-surface-hover)',
-              border: '1px solid var(--color-border-default)',
-              textAlign: 'left',
-              marginBottom: 'var(--space-6)'
-            }}>
-              <div style={{ fontSize: 'var(--font-xs)', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 'var(--space-3)' }}>
-                JanAwaaz currently accepts complaints for these 5 civic services:
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={16} color="var(--color-status-success)" /> <strong>Broken Streetlights</strong> (Electrical Department)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={16} color="var(--color-status-success)" /> <strong>Water Leakage</strong> (Water Supply & Sewerage Department)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={16} color="var(--color-status-success)" /> <strong>Potholes / Damaged Roads</strong> (Roads & Infrastructure Department)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={16} color="var(--color-status-success)" /> <strong>Garbage Overflow / Blocked Drains / Sewage Overflow</strong> (Municipal Department)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={16} color="var(--color-status-success)" /> <strong>Fire / Fire Hazards</strong> (Fire Department)</div>
-              </div>
-            </div>
-
             <Button
               variant="primary"
               size="lg"
               onClick={() => {
-                setStep(1);
+                setActiveStep(1);
                 setVoiceText('');
                 setImages([]);
                 setAiAnalysis(null);
@@ -1020,17 +968,22 @@ export const ReportIssue = ({ onNavigate }) => {
             </p>
 
             <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginBottom: 'var(--space-2)' }}>
-              📷 ATTACHED PHOTO EVIDENCE & VISUAL DIAGNOSTIC
+              📷 ATTACHED PHOTO EVIDENCE
             </div>
 
             {images.length > 0 ? (
-              <img
-                src={images[0]}
-                alt="Uploaded Evidence"
-                style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}
-              />
+              <div style={{ display: 'grid', gridTemplateColumns: images.length > 1 ? '1fr 1fr' : '1fr', gap: '8px' }}>
+                {images.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Evidence ${idx + 1}`}
+                    style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}
+                  />
+                ))}
+              </div>
             ) : (
-              <div style={{ height: '200px', backgroundColor: 'var(--color-bg-surface-hover)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-xs)', border: '1px dashed var(--color-border-default)' }}>
+              <div style={{ height: '160px', backgroundColor: 'var(--color-bg-surface-hover)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-xs)', border: '1px dashed var(--color-border-default)' }}>
                 No photo evidence uploaded
               </div>
             )}
@@ -1045,7 +998,7 @@ export const ReportIssue = ({ onNavigate }) => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-brand-primary)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.05em' }}>
-                <Sparkles size={14} /> JANSETU AI CALCULATIONS
+                <Sparkles size={14} /> JANAWAAZ AI CALCULATIONS
               </div>
               <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)', fontWeight: 800 }}>
                 Score {aiAnalysis?.priority || 85}/100
@@ -1095,7 +1048,7 @@ export const ReportIssue = ({ onNavigate }) => {
 
         <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Button variant="secondary" icon={Edit3} onClick={() => setEditModalOpen(true)} disabled={isSubmitting}>
-            EDIT DETAILS
+            {t('editDetails')}
           </Button>
           <Button
             variant="primary"
@@ -1104,41 +1057,24 @@ export const ReportIssue = ({ onNavigate }) => {
             disabled={isSubmitting}
             onClick={handleReviewConfirmed}
           >
-            {isSubmitting ? 'SUBMITTING REPORT TO DEPARTMENT...' : 'CONFIRM & SUBMIT REPORT ➔'}
+            {isSubmitting ? t('submitting') : t('confirmAndSubmit')}
           </Button>
         </div>
 
-        <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="Modify AI Calculations">
+        <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="Modify Issue Details">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <Input
-              label="Issue Summary Title"
+              label={t('issueTitleLabel')}
               value={aiAnalysis?.summary || ''}
               onChange={(e) => setAiAnalysis({ ...aiAnalysis, summary: e.target.value })}
             />
 
             <Textarea
-              label="Detailed Description"
+              label={t('issueDescLabel')}
               value={voiceText}
               onChange={(e) => setVoiceText(e.target.value)}
               rows={4}
             />
-
-            <div>
-              <label style={{ display: 'block', fontSize: 'var(--font-xs)', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 'var(--space-2)' }}>
-                Target Department
-              </label>
-              <select
-                value={aiAnalysis?.department || 'Roads & Infrastructure Department'}
-                onChange={(e) => setAiAnalysis({ ...aiAnalysis, department: e.target.value })}
-                className="form-select"
-              >
-                <option value="Electrical Department">Electrical Department</option>
-                <option value="Water Supply & Sewerage Department">Water Supply & Sewerage Department</option>
-                <option value="Roads & Infrastructure Department">Roads & Infrastructure Department</option>
-                <option value="Municipal Department">Municipal Department</option>
-                <option value="Fire Department">Fire Department</option>
-              </select>
-            </div>
 
             <Button variant="primary" onClick={() => setEditModalOpen(false)} style={{ width: '100%', marginTop: 'var(--space-2)' }}>
               SAVE & CONTINUE
@@ -1149,8 +1085,8 @@ export const ReportIssue = ({ onNavigate }) => {
     );
   }
 
-  // SCREEN 3: AI SCANNING VIEW
-  if (step === 3) {
+  // SCREEN 5: AI SCANNING VIEW ("Verifying..." text)
+  if (activeStep === 5) {
     return (
       <div className="container animate-fade-in" style={{ maxWidth: '440px', paddingTop: 'var(--space-12)', paddingBottom: 'var(--space-12)' }}>
         <div className="card-container" style={{ padding: 'var(--space-8)', textAlign: 'center', overflow: 'hidden', position: 'relative' }}>
@@ -1181,21 +1117,17 @@ export const ReportIssue = ({ onNavigate }) => {
           </div>
 
           <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 'var(--space-6)' }}>
-            Featherless AI diagnostics scanning...
+            {selectedVoiceLang === 'te' ? 'పరిశీలిస్తోంది...' : selectedVoiceLang === 'hi' ? 'सत्यापन किया जा रहा है...' : 'Verifying...'}
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', textAlign: 'left', fontSize: 'var(--font-xs)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--status-resolved)', fontWeight: 700 }}>
               <CheckCircle2 size={16} />
-              <span>Analyzing visual features of uploaded photo</span>
+              <span>Analyzing photo evidence</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: isAnalyzing ? 'var(--color-brand-primary)' : 'var(--status-resolved)', fontWeight: 700 }}>
               {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              <span>Processing voice transcriptions</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: locationLoading ? 'var(--color-brand-primary)' : 'var(--status-resolved)', fontWeight: 700 }}>
-              {locationLoading ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              <span>Resolving GPS location coordinate mapping</span>
+              <span>Processing voice description</span>
             </div>
           </div>
         </div>
@@ -1204,7 +1136,7 @@ export const ReportIssue = ({ onNavigate }) => {
   }
 
   // SCREEN 2: ACTIVE MULTILINGUAL SPEECH LISTENING VIEW
-  if (step === 2) {
+  if (activeStep === 2) {
     const liveText = (voiceText + (interimText ? ' ' + interimText : '')).trim();
 
     return (
@@ -1218,7 +1150,7 @@ export const ReportIssue = ({ onNavigate }) => {
           {/* Active Language Badge */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)', padding: '4px 12px', borderRadius: 'var(--radius-full)', fontSize: '11px', fontWeight: 800, marginBottom: 'var(--space-4)' }}>
             <span>🎙️ LISTENING IN:</span>
-            <strong>{getLanguageName(selectedVoiceLang)}</strong>
+            <strong>{selectedVoiceLang === 'te' ? 'Telugu (తెలుగు)' : selectedVoiceLang === 'hi' ? 'Hindi (हिन्दी)' : 'English'}</strong>
           </div>
 
           <div style={{
@@ -1238,10 +1170,10 @@ export const ReportIssue = ({ onNavigate }) => {
           </div>
 
           <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-            {isRecording ? 'Listening for your voice...' : 'Speech Captured'}
+            {isRecording ? t('listeningVoice') : t('speechCaptured')}
           </h2>
           <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', margin: '4px 0 var(--space-6)' }}>
-            Speak clearly about the civic problem (e.g., "There is a large pothole near the main road...").
+            {t('describeSub')}
           </p>
 
           {recordingError && (
@@ -1296,7 +1228,7 @@ export const ReportIssue = ({ onNavigate }) => {
               onClick={handleStopRecording}
               style={{ width: '100%' }}
             >
-              STOP & SUBMIT FOR AI VALIDATION ➔
+              {t('stopAndSubmit')}
             </Button>
 
             <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center' }}>
@@ -1317,7 +1249,7 @@ export const ReportIssue = ({ onNavigate }) => {
                   padding: '6px 12px'
                 }}
               >
-                🔄 Restart Voice Recording
+                🔄 {t('restartRecording')}
               </button>
 
               <button
@@ -1326,7 +1258,7 @@ export const ReportIssue = ({ onNavigate }) => {
                   speechService.stopListening();
                   setIsRecording(false);
                   setUseTextInput(true);
-                  setStep(1);
+                  setActiveStep(1);
                 }}
                 style={{
                   background: 'none',
@@ -1338,7 +1270,7 @@ export const ReportIssue = ({ onNavigate }) => {
                   padding: '6px 12px'
                 }}
               >
-                ⌨️ Switch to Typing
+                ⌨️ {t('switchToTyping')}
               </button>
             </div>
           </div>
@@ -1348,91 +1280,113 @@ export const ReportIssue = ({ onNavigate }) => {
   }
 
   // =========================================================================
-  // SCREEN 1: STRICT STEP-BY-STEP GUIDED FLOW
-  // STEP 1: VOICE INPUT -> STEP 2: PHOTO EVIDENCE -> STEP 3: LOCATION DETAILS
+  // MAIN GUIDED STEP-BY-STEP FLOW (RENDER ONLY CURRENT ACTIVE STEP!)
+  // activeStep 1 = STEP 1: VOICE INPUT & AI VALIDATION
+  // activeStep 3 = STEP 2: PHOTO EVIDENCE (MIN 1, MAX 4, WITH SUBMIT BUTTON)
+  // activeStep 4 = STEP 3: LOCATION DETAILS
   // =========================================================================
   const isStep1Done = voiceValidation.isValidated && voiceValidation.status === 'VALID' && voiceValidation.aiConnected === true;
-  const isStep2Done = isStep1Done && images.length > 0 && photoValidation.isValidated && photoValidation.status === 'VALID' && photoValidation.aiConnected === true;
+  const isStep2Done = isStep1Done && images.length >= 1 && images.length <= 4;
 
   return (
     <div className="container animate-slide-up" style={{ maxWidth: '680px', paddingTop: 'var(--space-6)', paddingBottom: 'var(--space-12)' }}>
       
-      {/* Header & Step Sequence Progress Indicator */}
+      {/* Header & Step Progress Bar */}
       <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: 'var(--space-3)' }}>
-          <span className={`badge ${isStep1Done ? 'badge-success' : ''}`} style={{ backgroundColor: isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-brand-subtle)', color: isStep1Done ? 'var(--status-resolved)' : 'var(--color-brand-primary)', fontWeight: 800 }}>
-            {isStep1Done ? '✓ STEP 1: VOICE VERIFIED' : '1. DESCRIBE ISSUE (VOICE)'}
+          <span
+            onClick={() => setActiveStep(1)}
+            className="badge"
+            style={{
+              backgroundColor: activeStep === 1 ? 'var(--color-brand-primary)' : isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-bg-surface-hover)',
+              color: activeStep === 1 ? '#FFFFFF' : isStep1Done ? 'var(--status-resolved)' : 'var(--color-text-tertiary)',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {isStep1Done ? t('step1VoiceVerified') : t('step1Title')}
           </span>
+
           <span style={{ color: 'var(--color-text-tertiary)' }}>➔</span>
-          <span className="badge" style={{ backgroundColor: isStep2Done ? 'var(--status-resolved-bg)' : isStep1Done ? 'var(--color-brand-subtle)' : 'var(--color-bg-surface-hover)', color: isStep2Done ? 'var(--status-resolved)' : isStep1Done ? 'var(--color-brand-primary)' : 'var(--color-text-tertiary)', fontWeight: 800 }}>
-            {isStep2Done ? '✓ STEP 2: PHOTO ATTACHED' : isStep1Done ? '2. PHOTO EVIDENCE' : '🔒 2. PHOTO EVIDENCE'}
+
+          <span
+            onClick={() => {
+              if (isStep1Done) setActiveStep(3);
+            }}
+            className="badge"
+            style={{
+              backgroundColor: activeStep === 3 ? 'var(--color-brand-primary)' : isStep2Done ? 'var(--status-resolved-bg)' : 'var(--color-bg-surface-hover)',
+              color: activeStep === 3 ? '#FFFFFF' : isStep2Done ? 'var(--status-resolved)' : 'var(--color-text-tertiary)',
+              fontWeight: 800,
+              cursor: isStep1Done ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {isStep2Done ? t('step2Verified') : t('step2PhotoEvidence')}
           </span>
+
           <span style={{ color: 'var(--color-text-tertiary)' }}>➔</span>
-          <span className="badge" style={{ backgroundColor: isStep2Done ? 'var(--color-brand-subtle)' : 'var(--color-bg-surface-hover)', color: isStep2Done ? 'var(--color-brand-primary)' : 'var(--color-text-tertiary)', fontWeight: 800 }}>
-            {isStep2Done ? '3. LOCATION DETAILS' : '🔒 3. LOCATION DETAILS'}
+
+          <span
+            onClick={() => {
+              if (isStep2Done) setActiveStep(4);
+            }}
+            className="badge"
+            style={{
+              backgroundColor: activeStep === 4 ? 'var(--color-brand-primary)' : 'var(--color-bg-surface-hover)',
+              color: activeStep === 4 ? '#FFFFFF' : 'var(--color-text-tertiary)',
+              fontWeight: 800,
+              cursor: isStep2Done ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {t('step3LocationDetails')}
           </span>
         </div>
 
         <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-          Report a Civic Issue
+          {t('reportACivicIssue')}
         </h1>
         <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-          Guided Civic Report Assistant: Record your voice complaint first, validate with Featherless AI, then add photo evidence and location details.
+          {t('reportSubtitle')}
         </p>
       </div>
 
       {/* =================================================================== */}
-      {/* STEP 1 CARD: VOICE INPUT & AI VALIDATION FIRST                     */}
+      {/* RENDER ONLY STEP 1 (WHEN activeStep === 1)                           */}
       {/* =================================================================== */}
-      <div className="card-container" style={{
-        padding: 'var(--space-6)',
-        marginBottom: 'var(--space-6)',
-        border: isStep1Done ? '2px solid var(--status-resolved)' : '1.5px solid var(--color-brand-primary)',
-        boxShadow: isStep1Done ? '0 4px 14px rgba(22, 163, 74, 0.12)' : 'var(--shadow-glow-indigo)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-brand-subtle)',
-              color: isStep1Done ? 'var(--status-resolved)' : 'var(--color-brand-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '14px'
-            }}>
-              {isStep1Done ? '✓' : '1'}
-            </div>
-            <div>
-              <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-                Describe the Civic Issue
-              </h2>
-              <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                Tell us about the civic problem using your voice.
-              </span>
-            </div>
-          </div>
-
-          {/* Real AI API Status Indicator Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {voiceValidation.status !== 'IDLE' && (
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 800,
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: voiceValidation.aiConnected ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                color: voiceValidation.aiConnected ? 'var(--status-resolved)' : 'var(--status-reopened)',
-                border: `1px solid ${voiceValidation.aiConnected ? 'rgba(22, 163, 74, 0.3)' : 'rgba(220, 38, 38, 0.3)'}`
+      {activeStep === 1 && (
+        <div className="card-container animate-fade-in" style={{
+          padding: 'var(--space-6)',
+          marginBottom: 'var(--space-6)',
+          border: isStep1Done ? '2px solid var(--status-resolved)' : '1.5px solid var(--color-brand-primary)',
+          boxShadow: isStep1Done ? '0 4px 14px rgba(22, 163, 74, 0.12)' : 'var(--shadow-glow-indigo)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-brand-subtle)',
+                color: isStep1Done ? 'var(--status-resolved)' : 'var(--color-brand-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '14px'
               }}>
-                {voiceValidation.aiConnected ? 'AI Validation: Connected ✓' : 'AI Validation: API Unavailable ✕'}
-              </span>
-            )}
+                {isStep1Done ? '✓' : '1'}
+              </div>
+              <div>
+                <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
+                  {t('describeTheCivicIssue')}
+                </h2>
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
+                  {t('describeSub')}
+                </span>
+              </div>
+            </div>
 
-            {/* Voice Language Selector */}
+            {/* Language Selector Limited Strictly to English, Telugu, Hindi */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Globe size={14} style={{ color: 'var(--color-brand-primary)' }} />
               <select
@@ -1452,562 +1406,370 @@ export const ReportIssue = ({ onNavigate }) => {
                 <option value="en">English</option>
                 <option value="te">Telugu (తెలుగు)</option>
                 <option value="hi">Hindi (हिन्दी)</option>
-                <option value="ta">Tamil (தமிழ்)</option>
-                <option value="kn">Kannada (కన్నడ)</option>
-                <option value="mr">Marathi (మరాఠీ)</option>
-                <option value="bn">Bengali (বাংলা)</option>
-                <option value="gu">Gujarati (ગુજરાતી)</option>
-                <option value="ml">Malayalam (മലയാളം)</option>
               </select>
             </div>
           </div>
-        </div>
 
-        {/* Unified Audio Recording Panel */}
-        <div style={{
-          backgroundColor: isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-bg-surface-hover)',
-          borderRadius: 'var(--radius-xl)',
-          padding: 'var(--space-6)',
-          border: `1px solid ${isStep1Done ? 'rgba(22, 163, 74, 0.3)' : 'var(--color-border-default)'}`,
-          textAlign: 'center',
-          marginBottom: 'var(--space-5)'
-        }}>
-          {!isStep1Done ? (
-            <>
-              {/* Large Microphone Record Button */}
-              <button
-                type="button"
-                onClick={handleStartRecording}
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--color-brand-primary)',
-                  border: '5px solid var(--color-brand-subtle)',
-                  color: '#FFFFFF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto var(--space-3)',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(37, 99, 235, 0.3)',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <Mic size={36} />
-              </button>
+          {/* Unified Audio Recording Panel */}
+          <div style={{
+            backgroundColor: isStep1Done ? 'var(--status-resolved-bg)' : 'var(--color-bg-surface-hover)',
+            borderRadius: 'var(--radius-xl)',
+            padding: 'var(--space-6)',
+            border: `1px solid ${isStep1Done ? 'rgba(22, 163, 74, 0.3)' : 'var(--color-border-default)'}`,
+            textAlign: 'center',
+            marginBottom: 'var(--space-5)'
+          }}>
+            {!isStep1Done ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleStartRecording}
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--color-brand-primary)',
+                    border: '5px solid var(--color-brand-subtle)',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto var(--space-3)',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(37, 99, 235, 0.3)',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <Mic size={36} />
+                </button>
 
-              <h3 style={{ fontSize: 'var(--font-sm)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
-                🎙️ Tap to Record Voice Description
-              </h3>
-              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px', maxWidth: '420px', margin: '4px auto 0' }}>
-                "Tell us about the civic problem using your voice. For example: <em>There is a large pothole near the main road...</em>"
-              </p>
-            </>
+                <h3 style={{ fontSize: 'var(--font-sm)', fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                  🎙️ {t('tapToRecordVoiceDescription')}
+                </h3>
+                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px', maxWidth: '420px', margin: '4px auto 0' }}>
+                  {t('describeSub')}
+                </p>
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'var(--status-resolved)' }}>
+                <CheckCircle2 size={24} />
+                <strong style={{ fontSize: 'var(--font-md)' }}>
+                  {selectedVoiceLang === 'te' ? 'వాయిస్ సారాంశం ధృవీకరించబడింది' : selectedVoiceLang === 'hi' ? 'वॉइस विवरण सत्यापित हुआ' : 'Voice Description Verified'}
+                </strong>
+              </div>
+            )}
+          </div>
+
+          {/* Live Transcript / Manual Input Box */}
+          {!useTextInput ? (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <div style={{
+                backgroundColor: 'var(--color-bg-surface)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: 'var(--font-sm)',
+                color: voiceText ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                border: '1px solid var(--color-border-default)',
+                minHeight: '70px',
+                maxHeight: '140px',
+                overflowY: 'auto',
+                lineHeight: 1.6
+              }}>
+                {voiceText ? (
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-brand-primary)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Transcribed Text:
+                    </div>
+                    <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      "{voiceText}"
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontStyle: 'italic', fontSize: 'var(--font-xs)' }}>
+                    (Your voice recording will be transcribed here in real time...)
+                  </span>
+                )}
+              </div>
+
+              {voiceText && (
+                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    <button
+                      type="button"
+                      onClick={handleResetVoice}
+                      style={{
+                        backgroundColor: 'var(--color-bg-surface-hover)',
+                        color: 'var(--color-text-secondary)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <RotateCcw size={13} /> 🎙 {t('restartRecording')}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setUseTextInput(true)}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-brand-primary)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    <Type size={12} /> {t('switchToTyping')}
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'var(--status-resolved)' }}>
-              <CheckCircle2 size={24} />
-              <strong style={{ fontSize: 'var(--font-md)' }}>Voice Description Verified by AI</strong>
+            <div style={{ marginBottom: 'var(--space-4)' }} className="animate-fade-in">
+              <Textarea
+                label={t('describeTheCivicIssue')}
+                placeholder="Describe the issue in detail..."
+                value={voiceText}
+                onChange={(e) => {
+                  setVoiceText(e.target.value);
+                  setVoiceValidation({ status: 'IDLE', isValidated: false, message: '', transcription: '', category: '' });
+                }}
+                rows={3}
+              />
+              <div style={{ textAlign: 'right', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setUseTextInput(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-brand-primary)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  🎙️ {t('switchToVoice')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Validation Trigger Button */}
+          {voiceText && !isStep1Done && (
+            <Button
+              variant="primary"
+              size="md"
+              icon={isValidatingVoice ? RefreshCw : Sparkles}
+              disabled={isValidatingVoice || !voiceText.trim()}
+              onClick={() => handleValidateVoice()}
+              style={{ width: '100%', marginBottom: 'var(--space-4)' }}
+            >
+              {isValidatingVoice ? t('verifyingVoice') : t('submitVoiceValidation')}
+            </Button>
+          )}
+
+          {/* CONCISE 1-LINE AI VALIDATION FEEDBACK CARD */}
+          {voiceValidation.status === 'VALID' && (
+            <div style={{
+              backgroundColor: 'var(--status-resolved-bg)',
+              border: '1.5px solid var(--status-resolved)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-4)',
+              marginTop: 'var(--space-4)'
+            }} className="animate-slide-up">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'var(--status-resolved)', fontWeight: 800, fontSize: 'var(--font-sm)', lineHeight: 1.5 }}>
+                <CheckCircle2 size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  {getProblemIdentifiedText()}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 'var(--space-4)' }}>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setActiveStep(3)}
+                  style={{ width: '100%' }}
+                >
+                  {t('submitPhotoEvidence')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* UNCLEAR / ERROR STATES */}
+          {voiceValidation.status === 'UNCLEAR' && (
+            <div style={{ backgroundColor: 'var(--color-brand-subtle)', border: '1.5px solid var(--color-brand-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-primary)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
+                <AlertCircle size={18} /> {selectedVoiceLang === 'te' ? 'అస్పష్టమైన నగర సమస్య వివరణ' : selectedVoiceLang === 'hi' ? 'अस्पष्ट नागरिक समस्या का विवरण' : 'Unclear Civic Description'}
+              </div>
+              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0' }}>
+                {voiceValidation.message}
+              </p>
+              <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
+                🎙 {t('restartRecording')}
+              </Button>
+            </div>
+          )}
+
+          {voiceValidation.status === 'NON_CIVIC' && (
+            <div style={{ backgroundColor: 'var(--status-reopened-bg)', border: '1.5px solid rgba(220, 38, 38, 0.3)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
+                <XCircle size={18} /> {selectedVoiceLang === 'te' ? 'చెల్లుబాటు అయ్యే నగర సమస్య కాదు' : selectedVoiceLang === 'hi' ? 'वैध नागरिक समस्या नहीं है' : 'Not a Valid Civic Issue'}
+              </div>
+              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0' }}>
+                {voiceValidation.message}
+              </p>
+              <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
+                🎙 {t('restartRecording')}
+              </Button>
+            </div>
+          )}
+
+          {voiceValidation.status === 'PERSONAL_INFO' && (
+            <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', border: '1.5px solid #F59E0B', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D97706', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
+                <ShieldAlert size={18} /> {selectedVoiceLang === 'te' ? 'వ్యక్తిగత వివరాలు నమోదయ్యాయి' : selectedVoiceLang === 'hi' ? 'व्यक्तिगत विवरण का पता चला' : 'Personal Details Detected'}
+              </div>
+              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0' }}>
+                {voiceValidation.message}
+              </p>
+              <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
+                🎙 {t('restartRecording')}
+              </Button>
+            </div>
+          )}
+
+          {voiceValidation.status === 'API_ERROR' && (
+            <div style={{ backgroundColor: 'var(--status-reopened-bg)', border: '1.5px solid rgba(220, 38, 38, 0.4)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
+                <XCircle size={18} /> {selectedVoiceLang === 'te' ? 'AI ధృవీకరణ ప్రస్తుతం అందుబాటులో లేదు' : selectedVoiceLang === 'hi' ? 'AI सत्यापन वर्तमान में उपलब्ध नहीं है' : 'AI Validation Currently Unavailable'}
+              </div>
+              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0' }}>
+                {voiceValidation.message}
+              </p>
+              <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => handleValidateVoice()}>
+                🔄 {selectedVoiceLang === 'te' ? 'మళ్లీ ప్రయత్నించండి' : selectedVoiceLang === 'hi' ? 'पुनः प्रयास करें' : 'Retry Validation'}
+              </Button>
             </div>
           )}
         </div>
+      )}
 
-        {/* Live Transcript / Manual Input Box */}
-        {(!useTextInput) ? (
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{
-              backgroundColor: 'var(--color-bg-surface)',
-              padding: 'var(--space-4)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: 'var(--font-sm)',
-              color: voiceText ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
-              border: '1px solid var(--color-border-default)',
-              minHeight: '70px',
-              maxHeight: '140px',
-              overflowY: 'auto',
-              lineHeight: 1.6
-            }}>
-              {voiceText ? (
-                <div>
-                  <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-brand-primary)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Your voice was transcribed as:
-                  </div>
-                  <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                    "{voiceText}"
-                  </div>
-                </div>
-              ) : (
-                <span style={{ fontStyle: 'italic', fontSize: 'var(--font-xs)' }}>
-                  (Your voice recording will be transcribed into text here in real time...)
+      {/* =================================================================== */}
+      {/* RENDER ONLY STEP 2 (WHEN activeStep === 3)                           */}
+      {/* PHOTO EVIDENCE WITH MIN 1, MAX 4 & EXPLICIT SUBMIT BUTTON          */}
+      {/* =================================================================== */}
+      {activeStep === 3 && (
+        <div className="card-container animate-fade-in" style={{
+          padding: 'var(--space-6)',
+          marginBottom: 'var(--space-6)',
+          border: isStep2Done ? '2px solid var(--status-resolved)' : '1.5px solid var(--color-brand-primary)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: isStep2Done ? 'var(--status-resolved-bg)' : 'var(--color-brand-subtle)',
+                color: isStep2Done ? 'var(--status-resolved)' : 'var(--color-brand-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '14px'
+              }}>
+                {isStep2Done ? '✓' : '2'}
+              </div>
+              <div>
+                <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
+                  {t('step2PhotoEvidence')}
+                </h2>
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
+                  {t('photoEvidenceSub')}
                 </span>
-              )}
-            </div>
-
-            {/* Audio Playback & Re-record Controls */}
-            {voiceText && (
-              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                  <button
-                    type="button"
-                    onClick={handlePlayAudio}
-                    style={{
-                      backgroundColor: 'var(--color-brand-subtle)',
-                      color: 'var(--color-brand-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <Volume2 size={13} /> {isPlayingAudio ? 'Playing...' : '🔊 Listen to Audio'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleResetVoice}
-                    style={{
-                      backgroundColor: 'var(--color-bg-surface-hover)',
-                      color: 'var(--color-text-secondary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <RotateCcw size={13} /> 🎙 Record Again
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setUseTextInput(true)}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-brand-primary)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  <Type size={12} /> Edit with Keyboard
-                </button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginBottom: 'var(--space-4)' }} className="animate-fade-in">
-            <Textarea
-              label="Civic Problem Description"
-              placeholder="Describe the issue in detail (e.g. There is a large pothole near the school road...)"
-              value={voiceText}
-              onChange={(e) => {
-                setVoiceText(e.target.value);
-                setVoiceValidation({ status: 'IDLE', isValidated: false, message: '', transcription: '', category: '' });
-              }}
-              rows={3}
-            />
-            <div style={{ textAlign: 'right', marginTop: '4px' }}>
-              <button
-                type="button"
-                onClick={() => setUseTextInput(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--color-brand-primary)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                🎙️ Switch back to Voice Recorder
-              </button>
             </div>
           </div>
-        )}
 
-        {/* AI Validation Trigger Button if not yet validated */}
-        {voiceText && !isStep1Done && (
-          <Button
-            variant="primary"
-            size="md"
-            icon={isValidatingVoice ? RefreshCw : Sparkles}
-            disabled={isValidatingVoice || !voiceText.trim()}
-            onClick={() => handleValidateVoice()}
-            style={{ width: '100%', marginBottom: 'var(--space-4)' }}
-          >
-            {isValidatingVoice ? 'TRANSCRIBING & VALIDATING WITH AI...' : 'SUBMIT VOICE DESCRIPTION FOR AI VALIDATION ➔'}
-          </Button>
-        )}
-
-        {/* ================================================================= */}
-        {/* STEP 2 AI VALIDATION RESULT ALERTS (CASES A, B, C, D, E)          */}
-        {/* ================================================================= */}
-
-        {/* CASE A: VALID CIVIC ISSUE */}
-        {voiceValidation.status === 'VALID' && (
-          <div style={{
-            backgroundColor: 'var(--status-resolved-bg)',
-            border: '1.5px solid var(--status-resolved)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            marginTop: 'var(--space-3)'
-          }} className="animate-slide-up">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-resolved)', fontWeight: 900, fontSize: 'var(--font-sm)' }}>
-                <CheckCircle2 size={18} /> {voiceValidation.message}
-              </div>
-              <span className="badge" style={{ backgroundColor: 'rgba(22, 163, 74, 0.2)', color: 'var(--status-resolved)', fontWeight: 800 }}>
-                Confidence: {Math.round((voiceValidation.confidence || 0.9) * 100)}%
-              </span>
-            </div>
-
-            {voiceValidation.issueSummary && (
-              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '4px 0', fontWeight: 600 }}>
-                Issue Summary: <span>{voiceValidation.issueSummary}</span>
-              </p>
-            )}
-
-            <div style={{ marginTop: 'var(--space-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <span className="badge" style={{ backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand-primary)', fontWeight: 800 }}>
-                CATEGORY: {voiceValidation.category ? voiceValidation.category.toUpperCase() : 'CIVIC HAZARD'}
-              </span>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-resolved)' }}>
-                Step 1 Complete! Scroll to Step 2 below to add photo evidence ➔
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* CASE B: UNCLEAR / INCOMPLETE DESCRIPTION */}
-        {voiceValidation.status === 'UNCLEAR' && (
-          <div style={{
-            backgroundColor: 'var(--color-brand-subtle)',
-            border: '1.5px solid var(--color-brand-border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            marginTop: 'var(--space-3)'
-          }} className="animate-slide-up">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-primary)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-              <AlertCircle size={18} /> Unclear Civic Description
-            </div>
-            <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-              {voiceValidation.message}
-            </p>
-            <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
-              🎙 Record Again
-            </Button>
-          </div>
-        )}
-
-        {/* CASE C: NON-CIVIC / IRRELEVANT INPUT */}
-        {voiceValidation.status === 'NON_CIVIC' && (
-          <div style={{
-            backgroundColor: 'var(--status-reopened-bg)',
-            border: '1.5px solid rgba(220, 38, 38, 0.3)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            marginTop: 'var(--space-3)'
-          }} className="animate-slide-up">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-              <XCircle size={18} /> Not a Valid Civic Issue
-            </div>
-            <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-              {voiceValidation.message}
-            </p>
-            <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
-              🎙 Record Again
-            </Button>
-          </div>
-        )}
-
-        {/* CASE D: USER SHARES PERSONAL DETAILS */}
-        {voiceValidation.status === 'PERSONAL_INFO' && (
-          <div style={{
-            backgroundColor: 'rgba(245, 158, 11, 0.15)',
-            border: '1.5px solid #F59E0B',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            marginTop: 'var(--space-3)'
-          }} className="animate-slide-up">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D97706', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-              <ShieldAlert size={18} /> Personal Details Detected
-            </div>
-            <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-              {voiceValidation.message}
-            </p>
-            <Button variant="primary" size="sm" icon={Mic} onClick={handleStartRecording}>
-              🎙 Record Again
-            </Button>
-          </div>
-        )}
-
-        {/* CASE E: AI API UNAVAILABLE */}
-        {voiceValidation.status === 'API_ERROR' && (
-          <div style={{
-            backgroundColor: 'var(--status-reopened-bg)',
-            border: '1.5px solid rgba(220, 38, 38, 0.4)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            marginTop: 'var(--space-3)'
-          }} className="animate-slide-up">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-              <XCircle size={18} /> AI Validation Currently Unavailable
-            </div>
-            <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-              {voiceValidation.message}
-            </p>
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => handleValidateVoice()}>
-              🔄 Retry AI Validation
-            </Button>
-          </div>
-        )}
-
-      </div>
-
-      {/* =================================================================== */}
-      {/* STEP 2 CARD: PHOTO EVIDENCE (UNLOCKED ONLY AFTER STEP 1 VALIDATED)  */}
-      {/* =================================================================== */}
-      <div className="card-container" style={{
-        padding: 'var(--space-6)',
-        marginBottom: 'var(--space-6)',
-        opacity: isStep1Done ? 1 : 0.65,
-        border: isStep2Done ? '2px solid var(--status-resolved)' : isStep1Done ? '1.5px solid var(--color-brand-primary)' : '1px solid var(--color-border-default)',
-        pointerEvents: isStep1Done ? 'auto' : 'none'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: isStep2Done ? 'var(--status-resolved-bg)' : isStep1Done ? 'var(--color-brand-subtle)' : 'var(--color-bg-surface-hover)',
-              color: isStep2Done ? 'var(--status-resolved)' : isStep1Done ? 'var(--color-brand-primary)' : 'var(--color-text-tertiary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '14px'
-            }}>
-              {isStep2Done ? '✓' : isStep1Done ? '2' : <Lock size={14} />}
-            </div>
-            <div>
-              <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-                {isStep1Done ? 'Photo Evidence' : '🔒 Step 2: Photo Evidence'}
-              </h2>
-              <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                {isStep1Done ? 'Capture a photo or upload an image file of the physical issue.' : 'Complete Step 1 voice validation to unlock photo evidence.'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {!isStep1Done ? (
-          <div style={{ backgroundColor: 'var(--color-bg-surface-hover)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-xs)', border: '1px dashed var(--color-border-default)' }}>
-            🔒 <strong>Step 2 Locked</strong> — Please record and validate your voice description in Step 1 above first.
-          </div>
-        ) : (
           <div>
-            <div style={{
-              position: 'relative',
-              backgroundColor: 'var(--color-bg-surface-elevated)',
-              borderRadius: 'var(--radius-xl)',
-              overflow: 'hidden',
-              boxShadow: 'var(--shadow-sm)',
-              border: '1px solid var(--color-border-default)',
-              padding: 'var(--space-4)'
-            }}>
-              <FileUpload
-                label="Capture Photo / Upload Evidence"
-                onFilesSelected={(files) => {
-                  setImages(files);
-                  if (files && files.length > 0) {
-                    handleValidatePhoto(files[0]);
-                  } else {
-                    handleResetPhoto();
-                  }
-                }}
-              />
-            </div>
+            <FileUpload
+              label={t('uploadEvidenceLabel')}
+              onFilesSelected={(files) => {
+                const maxFour = (files || []).slice(0, 4);
+                setImages(maxFour);
+                if (maxFour.length > 0) {
+                  handleValidatePhoto(maxFour[0]);
+                } else {
+                  handleResetPhoto();
+                }
+              }}
+            />
 
-            {/* Validation Loading State */}
+            {/* Validation Loading State - Display "Verifying photo..." */}
             {isValidatingPhoto && (
-              <div className="animate-pulse" style={{ backgroundColor: 'var(--color-brand-subtle)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', textAlign: 'center', border: '1.5px solid var(--color-brand-border)', marginTop: 'var(--space-4)' }}>
+              <div className="animate-pulse" style={{ backgroundColor: 'var(--color-brand-subtle)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', textAlign: 'center', border: '1.5px solid var(--color-brand-border)', marginTop: 'var(--space-4)' }}>
                 <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--color-brand-primary)', margin: '0 auto var(--space-2)' }} />
                 <h3 style={{ fontSize: 'var(--font-sm)', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
-                  🔍 Verifying Photo Evidence with Featherless AI...
+                  {t('verifyingPhoto')}
                 </h3>
-                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                  Comparing your uploaded photo with the reported voice issue ("{voiceValidation.transcription || voiceText}")...
-                </p>
               </div>
             )}
 
-            {/* CASE A: VALID MATCHING PHOTO EVIDENCE */}
-            {!isValidatingPhoto && photoValidation.status === 'VALID' && (
-              <div style={{
-                backgroundColor: 'var(--status-resolved-bg)',
-                border: '1.5px solid var(--status-resolved)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                marginTop: 'var(--space-4)'
-              }} className="animate-slide-up">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-resolved)', fontWeight: 900, fontSize: 'var(--font-sm)' }}>
-                    <CheckCircle2 size={18} /> {photoValidation.message}
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-full)', backgroundColor: 'rgba(22, 163, 74, 0.15)', color: 'var(--status-resolved)' }}>
-                    AI Validation: Connected ✓
-                  </span>
-                </div>
-
-                {photoValidation.detectedVisualIssue && (
-                  <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '4px 0', fontWeight: 600 }}>
-                    Visual Analysis: <span>"{photoValidation.detectedVisualIssue}"</span>
-                  </p>
-                )}
-
-                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-                  {photoValidation.reason}
+            {/* EXPLICIT SUBMIT PHOTO EVIDENCE BUTTON */}
+            <div style={{ marginTop: 'var(--space-6)' }}>
+              <Button
+                variant="primary"
+                size="lg"
+                disabled={images.length < 1 || images.length > 4 || isValidatingPhoto}
+                onClick={() => setActiveStep(4)}
+                style={{ width: '100%' }}
+              >
+                {t('submitPhotoEvidence')}
+              </Button>
+              {images.length < 1 && (
+                <p style={{ fontSize: '11px', color: 'var(--status-reopened)', textAlign: 'center', marginTop: '6px', fontWeight: 600 }}>
+                  ⚠️ Minimum 1 photo must be uploaded to proceed.
                 </p>
-
-                <div style={{ marginTop: 'var(--space-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handleResetPhoto}
-                    style={{ background: 'none', border: 'none', color: 'var(--status-reopened)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Remove / Retake Photo
-                  </button>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-resolved)' }}>
-                    Step 2 Complete! Scroll to Step 3 below for Location Details ➔
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* CASE B: MISMATCHING PHOTO (WRONG SUBJECT OR DIFFERENT CIVIC ISSUE) */}
-            {!isValidatingPhoto && photoValidation.status === 'MISMATCH' && (
-              <div style={{
-                backgroundColor: 'var(--status-reopened-bg)',
-                border: '1.5px solid rgba(220, 38, 38, 0.4)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                marginTop: 'var(--space-4)'
-              }} className="animate-slide-up">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-                  <XCircle size={18} /> {photoValidation.message}
-                </div>
-                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-                  {photoValidation.reason}
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RotateCcw}
-                  onClick={handleResetPhoto}
-                >
-                  ↻ Re-upload Photo
-                </Button>
-              </div>
-            )}
-
-            {/* CASE C: POOR IMAGE QUALITY (TOO BLURRY / DARK / BLANK) */}
-            {!isValidatingPhoto && photoValidation.status === 'POOR_QUALITY' && (
-              <div style={{
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                border: '1.5px solid #F59E0B',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                marginTop: 'var(--space-4)'
-              }} className="animate-slide-up">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D97706', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-                  <AlertTriangle size={18} /> Photo Too Unclear / Blurry
-                </div>
-                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-                  {photoValidation.message}
-                </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={RotateCcw}
-                  onClick={handleResetPhoto}
-                >
-                  ↻ Upload Clearer Photo
-                </Button>
-              </div>
-            )}
-
-            {/* CASE D: AI API UNAVAILABLE */}
-            {!isValidatingPhoto && photoValidation.status === 'API_ERROR' && (
-              <div style={{
-                backgroundColor: 'var(--status-reopened-bg)',
-                border: '1.5px solid rgba(220, 38, 38, 0.4)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                marginTop: 'var(--space-4)'
-              }} className="animate-slide-up">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-reopened)', fontWeight: 900, fontSize: 'var(--font-sm)', marginBottom: '4px' }}>
-                  <XCircle size={18} /> Photo Verification Currently Unavailable
-                </div>
-                <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-primary)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-                  {photoValidation.message}
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RefreshCw}
-                  onClick={() => {
-                    if (images.length > 0) handleValidatePhoto(images[0]);
-                  }}
-                >
-                  🔄 Retry Photo Validation
-                </Button>
-              </div>
-            )}
-
-          </div>
-        )}
-      </div>
-
-      {/* =================================================================== */}
-      {/* STEP 3 CARD: LOCATION DETAILS (UNLOCKED ONLY AFTER PHOTO ATTACHED)   */}
-      {/* =================================================================== */}
-      <div className="card-container" style={{
-        padding: 'var(--space-6)',
-        marginBottom: 'var(--space-6)',
-        opacity: isStep2Done ? 1 : 0.65,
-        border: isStep2Done ? '1.5px solid var(--color-brand-primary)' : '1px solid var(--color-border-default)',
-        pointerEvents: isStep2Done ? 'auto' : 'none'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: isStep2Done ? 'var(--color-brand-subtle)' : 'var(--color-bg-surface-hover)',
-              color: isStep2Done ? 'var(--color-brand-primary)' : 'var(--color-text-tertiary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '14px'
-            }}>
-              {isStep2Done ? '3' : <Lock size={14} />}
-            </div>
-            <div>
-              <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
-                {isStep2Done ? 'Location Details' : '🔒 Step 3: Location Details'}
-              </h2>
-              <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
-                {isStep2Done ? 'Pin location on map or use automatic GPS detection.' : 'Attach Photo Evidence in Step 2 to unlock location mapping.'}
-              </span>
+              )}
             </div>
           </div>
         </div>
+      )}
 
-        {!isStep2Done ? (
-          <div style={{ backgroundColor: 'var(--color-bg-surface-hover)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-xs)', border: '1px dashed var(--color-border-default)' }}>
-            🔒 <strong>Step 3 Locked</strong> — Please attach photo evidence in Step 2 above first.
+      {/* =================================================================== */}
+      {/* RENDER ONLY STEP 3 (WHEN activeStep === 4)                           */}
+      {/* LOCATION DETAILS & GPS SELECTION                                   */}
+      {/* =================================================================== */}
+      {activeStep === 4 && (
+        <div className="card-container animate-fade-in" style={{
+          padding: 'var(--space-6)',
+          marginBottom: 'var(--space-6)',
+          border: '1.5px solid var(--color-brand-primary)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-brand-subtle)',
+                color: 'var(--color-brand-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '14px'
+              }}>
+                3
+              </div>
+              <div>
+                <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 900, color: 'var(--color-text-primary)' }}>
+                  {t('step3LocationDetails')}
+                </h2>
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-text-secondary)' }}>
+                  {t('locationLabel')}
+                </span>
+              </div>
+            </div>
           </div>
-        ) : (
+
           <div>
             <LeafletMapPicker
               initialLocation={location}
@@ -2022,16 +1784,16 @@ export const ReportIssue = ({ onNavigate }) => {
               icon={ArrowRight}
               iconPosition="right"
               onClick={() => {
-                setStep(3);
+                setActiveStep(5);
                 processAiAndLocation();
               }}
               style={{ width: '100%' }}
             >
-              ANALYZE COMPLAINT & CONFIRM REPORT ➔
+              {t('analyzeAndConfirm')}
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );

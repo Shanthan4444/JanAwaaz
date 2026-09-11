@@ -5,40 +5,23 @@ const ThemeContext = createContext();
 const THEME_KEY = 'janawaaz_theme';
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setThemeState] = useState(() => {
-    // 1. Check local storage
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      return savedTheme;
-    }
-    // 2. Check system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  const theme = 'light';
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem(THEME_KEY, 'light');
+  }, []);
 
-  const toggleTheme = () => {
-    setThemeState((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
-  };
-
-  const setTheme = (newTheme) => {
-    if (newTheme === 'light' || newTheme === 'dark') {
-      setThemeState(newTheme);
-    }
-  };
+  const toggleTheme = () => {};
+  const setTheme = () => {};
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={{ theme: 'light', toggleTheme, setTheme, isDark: false }}>
       {children}
     </ThemeContext.Provider>
   );
 };
+
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);

@@ -158,7 +158,7 @@ const openIssuesToSeed = [
 ];
 
 async function seedMapIssues() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jansetu';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/janawaaz';
   try {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log('✅ Connected to MongoDB.');

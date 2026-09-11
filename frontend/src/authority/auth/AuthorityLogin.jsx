@@ -63,7 +63,7 @@ export const AuthorityLogin = ({ onSuccess }) => {
 
       <Input
         label="Officer Email or Employee ID"
-        placeholder="e.g. fire.officer@jansetu.gov.in"
+        placeholder="e.g. fire.officer@janawaaz.gov.in"
         value={credential}
         onChange={(e) => setCredential(e.target.value)}
         required

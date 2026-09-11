@@ -65,7 +65,7 @@ export const twilioService = {
         const params = new URLSearchParams();
         params.append('To', formattedMobile);
         params.append('From', fromNumber);
-        params.append('Body', `Your JanSetu verification code is: ${otpCode}. Valid for 10 minutes.`);
+        params.append('Body', `Your JanAwaaz verification code is: ${otpCode}. Valid for 10 minutes.`);
 
         const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
           method: 'POST',
@@ -97,7 +97,7 @@ export const twilioService = {
         const params = new URLSearchParams();
         params.append('To', `whatsapp:${formattedMobile}`);
         params.append('From', 'whatsapp:+14155238886');
-        params.append('Body', `JanSetu Verification Code: ${otpCode}. Valid for 10 minutes.`);
+        params.append('Body', `JanAwaaz Verification Code: ${otpCode}. Valid for 10 minutes.`);
 
         const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
           method: 'POST',

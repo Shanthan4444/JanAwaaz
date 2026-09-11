@@ -5,7 +5,7 @@ import { Issue } from '../models/Issue.js';
 dotenv.config();
 
 async function cleanPlaceholders() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jansetu';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/janawaaz';
   try {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log('✅ Connected to MongoDB.');

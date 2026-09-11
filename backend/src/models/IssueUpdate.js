@@ -42,7 +42,7 @@ const issueUpdateSchema = new mongoose.Schema(
     },
     actorName: {
       type: String,
-      default: 'Jansetu System'
+      default: 'JanAwaaz System'
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed

@@ -143,7 +143,15 @@ export const featherlessProvider = {
 
     const systemPrompt = `You are a strict civic issue validation assistant.
 
-Your ONLY task is to determine whether the user's spoken statement (in any language, including English, Telugu, Hindi, Tamil, Kannada, Marathi, Bengali, Gujarati, Malayalam, etc.) describes a genuine public/civic issue that could reasonably be reported to a municipal/local government/civic authority.
+==================================================
+CRITICAL LANGUAGE DIRECTIVE (MANDATORY)
+==================================================
+You MUST output the "issue_summary", "reason", and "response_to_user" fields in the EXACT SAME LANGUAGE and script as the user's transcribed spoken statement.
+- If the statement is in Telugu, output issue_summary, reason, and response_to_user in Telugu script.
+- If the statement is in Hindi, output in Hindi script.
+- If the statement is in English, output in English.
+
+Your ONLY task is to determine whether the user's spoken statement (in any language, including English, Telugu, Hindi, etc.) describes a genuine public/civic issue that could reasonably be reported to a municipal/local government/civic authority.
 
 Do not classify personal problems, casual conversation, birthday wishes, greetings, college problems, academic problems, relationship problems, emotional conversations, general questions, jokes, or unrelated content as civic issues.
 

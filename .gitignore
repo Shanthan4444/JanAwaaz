@@ -11,3 +11,9 @@ scratch/
 .env.*
 !.env.example
 
+# Local storage and test uploads
+backend/public/photos/*
+!backend/public/photos/.gitkeep
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
+

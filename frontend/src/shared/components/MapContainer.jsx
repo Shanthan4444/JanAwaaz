@@ -68,7 +68,7 @@ export const MapContainer = ({
       // Add OpenStreetMap Real Tile Layer
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '🏢 JanSetu GIS Heatmap | © OpenStreetMap contributors'
+        attribution: '🏢 JanAwaaz GIS Heatmap | © OpenStreetMap contributors'
       }).addTo(map);
 
       markersGroupRef.current = window.L.layerGroup().addTo(map);
