@@ -4,6 +4,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { StatusBadge } from './StatusBadge';
 import { Button } from './Button';
 import { Card } from './Card';
+import { resolveImageUrl } from '../utils/imageUtils';
 
 export const IssueCard = ({ issue, onNavigateTrack }) => {
   if (!issue) return null;
@@ -14,7 +15,7 @@ export const IssueCard = ({ issue, onNavigateTrack }) => {
         <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
           {issue.evidence && issue.evidence.length > 0 && (
             <img
-              src={issue.evidence[0]}
+              src={resolveImageUrl(issue.evidence[0])}
               alt={issue.title}
               style={{
                 width: '96px',
@@ -24,6 +25,7 @@ export const IssueCard = ({ issue, onNavigateTrack }) => {
                 border: '1px solid var(--color-border-subtle)',
                 flexShrink: 0
               }}
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           )}
 
